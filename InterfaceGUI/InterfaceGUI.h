@@ -20,15 +20,11 @@ namespace InterfaceGUI {
     void BeginFrame();
 
     // Draws all UI elements.
-    // WorkersPerMillionActivePerSector: The current value of parameter A, to be displayed and potentially modified.
     // framerate: Current application framerate.
     // ms_per_frame: Current milliseconds per frame.
-    // should_recalculate_gdp: A reference to a boolean flag that will be set to true if the UI requests a recalculation.
     void DrawUI(
-        float& WorkersPerMillionActivePerSector, // Pass by ref to allow modification
         float framerate,
-        float ms_per_frame,
-        bool& should_recalculate_gdp // This might be replaced by direct calls to Simulator
+        float ms_per_frame
     );
 
     // Ends the current ImGui frame and renders it.

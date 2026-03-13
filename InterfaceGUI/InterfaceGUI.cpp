@@ -105,10 +105,8 @@ namespace InterfaceGUI {
 	}
 
     void DrawUI(
-        float& WorkersPerMillionActivePerSector,
         float framerate,
-        float ms_per_frame,
-        bool& should_recalculate_gdp
+        float ms_per_frame
     ) {
         if (!g_is_initialized) {
             Logger::Warning("InterfaceGUI: DrawUI called before initialization.");
@@ -181,8 +179,8 @@ namespace InterfaceGUI {
         }
         ImGui::End();
 
-        // --- DEPX Simulator Control Window ---
-        ImGui::Begin("DEPX Simulator Control");
+        // --- MolecularDeployer Simulator Control Window ---
+        ImGui::Begin("MolecularDeployer Control");
         {
             Simulator::SimulationState current_sim_state_for_slider = Simulator::GetSimulationState();
             bool slider_disabled = (current_sim_state_for_slider == Simulator::RUNNING ||
@@ -197,41 +195,21 @@ namespace InterfaceGUI {
                     ImGui::BeginDisabled();
                 }
 
-                // Workers per million
-                ImGui::Text("Workers Per Million Active Per Sector:");
-                ImGui::SetNextItemWidth(50);
-                float oldWorkersValue = WorkersPerMillionActivePerSector;
-                ImGui::InputScalar("##WorkersPerMillionInput", ImGuiDataType_Float, &WorkersPerMillionActivePerSector,
-                    NULL, NULL, "%.2f", ImGuiInputTextFlags_CharsDecimal);
-
-                // Only save if the value actually changed and input was deactivated
-                if (ImGui::IsItemDeactivatedAfterEdit() && oldWorkersValue != WorkersPerMillionActivePerSector) {
-                    if (WorkersPerMillionActivePerSector < 0.1f) WorkersPerMillionActivePerSector = 0.1f;
-                    if (WorkersPerMillionActivePerSector > 100.0f) WorkersPerMillionActivePerSector = 100.0f;
-                    // Parameter update removed (chemistry mode)
-                    DataManager::SaveConfigParameters();
-                }
-
+                // Max steps
+                ImGui::Text("Max. steps:");
                 ImGui::SameLine();
-                ImGui::Text("= %d workers, ", static_cast<int>(DataManager::GetNworkers()));
-                ImGui::SameLine();
-
-                // Max months
-                ImGui::Text("Max. months:");
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(50);
-                int oldMaxMonths = DataManager::GetMaxSteps();
-                int newMaxMonths = oldMaxMonths;
-                ImGui::InputScalar("##MaxMonthsInput", ImGuiDataType_S32, &newMaxMonths,
+                ImGui::SetNextItemWidth(80);
+                int oldMaxSteps = DataManager::GetMaxSteps();
+                int newMaxSteps = oldMaxSteps;
+                ImGui::InputScalar("##MaxStepsInput", ImGuiDataType_S32, &newMaxSteps,
                     NULL, NULL, "%d", ImGuiInputTextFlags_CharsDecimal);
 
-                // Only save if the value actually changed and input was deactivated
-                if (ImGui::IsItemDeactivatedAfterEdit() && newMaxMonths != oldMaxMonths) {
-                    if (newMaxMonths < 1) newMaxMonths = 1;
-                    if (newMaxMonths > 10000) newMaxMonths = 10000;
-                    DataManager::GetMutableConfigParameters().maxSteps = newMaxMonths;
+                if (ImGui::IsItemDeactivatedAfterEdit() && newMaxSteps != oldMaxSteps) {
+                    if (newMaxSteps < 1) newMaxSteps = 1;
+                    if (newMaxSteps > 1000000) newMaxSteps = 1000000;
+                    DataManager::GetMutableConfigParameters().maxSteps = newMaxSteps;
                     DataManager::SaveConfigParameters();
-                    Logger::Info("Max months updated to: " + std::to_string(newMaxMonths));
+                    Logger::Info("Max steps updated to: " + std::to_string(newMaxSteps));
                 }
 
                 // Plot delay control
@@ -295,81 +273,14 @@ namespace InterfaceGUI {
             ImGui::Separator();
             int currentMonth = Simulator::GetCurrentStepCalculated();
             ImGui::Text("Simulation State: %s", Simulator::StateToString(sim_state).c_str());
-            ImGui::Text("Current Month: %d, ", currentMonth);
-            ImGui::SameLine();
-            ImGui::Text(" Year: %.1f", currentMonth / 12.0f);
+            ImGui::Text("Current Step: %d", currentMonth);
         }
         ImGui::End();
 
         // --- Show all registered plots using the new auto-configuration system ---
         Visualizer::TimeSeriesAutoConfig::ShowAllRegisteredPlots(DataManager::GetMaxSteps());
 
-        // --- Worker Metrics Window (Plot) - Special handling for dynamic ID ---
-        {
-            int plotWorkerID = DataManager::GetConfigParameters().PlotWorkerID;
-
-            // Add a control to select which worker to plot
-            ImGui::Begin("Worker Plot Controls");
-            {
-                ImGui::Text("Worker Selection:");
-                if (ImGui::InputInt("Worker ID", &plotWorkerID)) {
-                    if (plotWorkerID < 0) plotWorkerID = 0; // Ensure non-negative
-                    DataManager::GetMutableConfigParameters().PlotWorkerID = plotWorkerID;
-                    DataManager::SaveConfigParameters(); // Save when worker ID changes
-                }
-                ImGui::Text("Currently tracking Worker ID: %d", plotWorkerID);
-            }
-            ImGui::End();
-
-            // Get worker-specific data
-            const std::vector<float>& worker_money = DataManager::GetWorkerMoneyValues();
-            const std::vector<float>& worker_bank_balance = DataManager::GetWorkerBankBalanceValues();
-            const std::vector<float>& worker_expenditure = DataManager::GetWorkerLastMonthExpenditureValues();
-            int max_months = DataManager::GetMaxSteps();
-
-            Visualizer::TimeSeriesPlotConfig config = Visualizer::CreateWorkerMetricsPlotConfig(
-                worker_money,
-                worker_bank_balance,
-                worker_expenditure,
-                plotWorkerID);
-
-            Visualizer::ShowMultiSeriesPlot(config, max_months, g_show_plot_line, g_show_plot_markers,
-                g_marker_size_option > 0 ? static_cast<float>(g_marker_size_option) : 2.0f);
-        }
-
-        // --- Firm Metrics Window (Plot) - Special handling for dynamic ID ---
-        {
-            int plotFirmID = DataManager::GetConfigParameters().PlotFirmID;
-
-            // Add a control to select which firm to plot
-            ImGui::Begin("Firm Plot Controls");
-            {
-                ImGui::Text("Firm Selection:");
-                if (ImGui::InputInt("Firm ID", &plotFirmID)) {
-                    if (plotFirmID < 0) plotFirmID = 0; // Ensure non-negative
-                    DataManager::GetMutableConfigParameters().PlotFirmID = plotFirmID;
-                    DataManager::SaveConfigParameters(); // Save when firm ID changes
-                }
-                ImGui::Text("Currently tracking Firm ID: %d", plotFirmID);
-            }
-            ImGui::End();
-
-            const std::vector<float>& firm_cash = DataManager::GetFirmCashValues();
-            const std::vector<float>& firm_bank_balance = DataManager::GetFirmBankBalanceValues();
-            const std::vector<float>& firm_revenue = DataManager::GetFirmRevenueValues();
-            const std::vector<float>& firm_production = DataManager::GetFirmProductionValues();
-            int max_months = DataManager::GetMaxSteps();
-
-            Visualizer::TimeSeriesPlotConfig config = Visualizer::CreateFirmMetricsPlotConfig(
-                firm_cash,
-                firm_bank_balance,
-                firm_revenue,
-                firm_production,
-                plotFirmID);
-
-            Visualizer::ShowMultiSeriesPlot(config, max_months, g_show_plot_line, g_show_plot_markers,
-                g_marker_size_option > 0 ? static_cast<float>(g_marker_size_option) : 2.0f);
-        }
+        // Worker/Firm plot windows removed (chemistry mode uses TimeSeriesAutoConfig)
 
         // --- Info Log Output Window ---
         ImGui::Begin("Info Output");
