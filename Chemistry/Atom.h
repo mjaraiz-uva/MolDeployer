@@ -1,8 +1,10 @@
 #pragma once
 
 #include <vector>
+#include <memory>
 #include "Particle.h"
 #include "ChemistryConfig.h"
+#include "Daemon.h"
 
 namespace Chemistry {
 
@@ -38,6 +40,13 @@ public:
     // Check if this atom already has a bond to another specific atom
     Bond* GetBondTo(const Atom* other) const;
 
+    // Daemon state (riding daemon, always non-null when daemons enabled)
+    DaemonState* GetDaemon() { return m_daemon.get(); }
+    const DaemonState* GetDaemon() const { return m_daemon.get(); }
+    bool HasDaemon() const { return m_daemon != nullptr; }
+    void SetDaemon(std::unique_ptr<DaemonState> d) { m_daemon = std::move(d); }
+    void ClearDaemon() { m_daemon.reset(); }
+
     // Per-timestep: Brownian motion update
     void StepActivity(double dt) override;
 
@@ -47,6 +56,7 @@ private:
     int m_currentBondOrder = 0;     // Sum of all bond orders on this atom
     std::vector<Bond*> m_bonds;     // Active bonds (non-owning)
     Molecule* m_molecule = nullptr; // Owning molecule (non-owning ptr)
+    std::unique_ptr<DaemonState> m_daemon;  // Riding daemon state
 };
 
 } // namespace Chemistry

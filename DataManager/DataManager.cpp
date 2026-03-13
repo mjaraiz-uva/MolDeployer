@@ -186,13 +186,10 @@ namespace DataManager {
 				LoadField(configJson, "A_break", g_config_parameters.A_break);
 				LoadField(configJson, "activationFraction", g_config_parameters.activationFraction);
 
-				// Darwinian daemons
+				// Darwinian daemons (riding)
 				LoadField(configJson, "enableDaemons", g_config_parameters.enableDaemons);
 				LoadField(configJson, "enableStochasticBonds", g_config_parameters.enableStochasticBonds);
-				LoadField(configJson, "daemonSpawnRate", g_config_parameters.daemonSpawnRate);
 				LoadField(configJson, "daemonTimeout", g_config_parameters.daemonTimeout);
-				LoadField(configJson, "daemonMaxPopulation", g_config_parameters.daemonMaxPopulation);
-				LoadField(configJson, "daemonSpeed", g_config_parameters.daemonSpeed);
 
 				// Boundary
 				LoadField(configJson, "boundaryType", g_config_parameters.boundaryType);
@@ -283,10 +280,7 @@ namespace DataManager {
 		configJson["activationFraction"] = g_config_parameters.activationFraction;
 		configJson["enableDaemons"] = g_config_parameters.enableDaemons;
 		configJson["enableStochasticBonds"] = g_config_parameters.enableStochasticBonds;
-		configJson["daemonSpawnRate"] = g_config_parameters.daemonSpawnRate;
 		configJson["daemonTimeout"] = g_config_parameters.daemonTimeout;
-		configJson["daemonMaxPopulation"] = g_config_parameters.daemonMaxPopulation;
-		configJson["daemonSpeed"] = g_config_parameters.daemonSpeed;
 		configJson["boundaryType"] = g_config_parameters.boundaryType;
 		configJson["rngSeed"] = g_config_parameters.rngSeed;
 		configJson["displayPosX"] = g_config_parameters.displayPosX;

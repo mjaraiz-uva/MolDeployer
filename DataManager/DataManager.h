@@ -53,13 +53,10 @@ namespace DataManager {
 		double A_break = 1.0e-3;              // Pre-exponential factor for bond breaking
 		double activationFraction = 0.1;      // E_activation = activationFraction * E_bond
 
-		// Darwinian daemon parameters
+		// Darwinian daemon parameters (riding daemons — every atom has one)
 		bool enableDaemons = false;                 // Enable Darwinian assembly daemons
 		bool enableStochasticBonds = true;          // Keep existing random bond formation
-		double daemonSpawnRate = 1.0;               // New daemons spawned per step (average)
-		int daemonTimeout = 500;                    // Steps without success before death
-		int daemonMaxPopulation = 1000;             // Population cap
-		double daemonSpeed = 2.0;                   // Speed multiplier vs atoms
+		int daemonTimeout = 500;                    // Steps without success before timeout
 
 		// Boundary conditions: "reflective" or "periodic"
 		std::string boundaryType = "reflective";

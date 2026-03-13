@@ -18,6 +18,7 @@ struct Bond {
     double energy = 0.0;       // Bond dissociation energy (kJ/mol), from lookup table
     int formationStep = -1;    // Timestep when this bond was formed
     bool markedForRemoval = false;  // Flag used during bond-breaking pass
+    Atom* daemonHolder = nullptr;   // Atom whose daemon holds this bond (for safe invalidation)
 
     // Returns the other atom in the bond
     Atom* GetOther(const Atom* a) const {

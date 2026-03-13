@@ -1,80 +1,40 @@
 #pragma once
 
 #include <memory>
+#include <string>
 #include <nlohmann/json.hpp>
-#include "Particle.h"
 #include "Recipe.h"
 
 namespace Chemistry {
 
 // Forward declarations
 class Atom;
-class SpatialGrid;
+struct Bond;
 
-// A Daemon is an independent spatial agent that specializes in one reaction (Recipe).
-// It moves through the simulation box searching for its two input components (atoms or
-// molecules), and when both are found nearby, it catalyzes the bond formation.
+// DaemonState: lightweight agent attached to every Atom.
+// Replaces the old free-flying Daemon class. Daemons now "ride" atoms.
 //
-// Analogous to a Worker/Producer/Firm in the DEPX economic model:
-// - Has its own position and velocity (moves independently of atoms)
-// - Specializes in one "product" (target molecule)
-// - Searches for "inputs" (two component atoms/molecules) in its spatial neighborhood
-// - On success: reproduces (spawns a copy nearby) — "assisted production"
-// - On timeout without success: dies — Darwinian selection pressure
-//
-// Atoms and molecules are GOODS. Daemons are the PRODUCERS.
-class Daemon : public Particle {
-public:
-	enum class State { SEARCHING, DEAD };
+// SEARCHING (heldBond == nullptr): atom looks for complement to form a bond.
+// HOLDING   (heldBond != nullptr): daemon holds a bond alive. On timeout, bond breaks.
+struct DaemonState {
+	const Recipe* recipe = nullptr;
+	int assignedStep = 0;
+	int timeoutSteps = 500;
+	int successCount = 0;
+	Bond* heldBond = nullptr;       // null = SEARCHING, non-null = HOLDING
 
-	Daemon(int id, const Recipe* recipe, int creationStep, int timeoutSteps);
-
-	// Per-timestep: Brownian motion (lighter than atoms, moves faster)
-	void StepActivity(double dt) override;
-
-	// Search neighborhood and attempt assembly.
-	// Returns true if successful. outAtomA/outAtomB = atoms to bond.
-	bool TryAssemble(const SpatialGrid& grid,
-	                 const std::vector<std::unique_ptr<Atom>>& atoms,
-	                 double cutoff, int currentStep,
-	                 Atom*& outAtomA, Atom*& outAtomB);
-
-	// Check if daemon should die (timeout since last success or creation)
-	bool ShouldDie(int currentStep) const;
-
-	// Record a successful assembly
-	void RecordSuccess(int step);
-
-	// Factory: create a copy nearby (reproduction on success)
-	std::unique_ptr<Daemon> SpawnOffspring(int newId, int currentStep,
-	                                        const Vec3& boxSize, std::mt19937& rng) const;
-
-	// Accessors
-	const Recipe* GetRecipe() const { return m_recipe; }
-	int GetSuccessCount() const { return m_successCount; }
-	State GetState() const { return m_state; }
-	void SetState(State s) { m_state = s; }
-	int GetCreationStep() const { return m_creationStep; }
-	int GetLastSuccessStep() const { return m_lastSuccessStep; }
-	int GetTimeoutSteps() const { return m_timeoutSteps; }
-	const std::string& GetTargetFormula() const { return m_recipe->targetFormula; }
+	bool IsSearching() const { return heldBond == nullptr; }
+	bool IsHolding() const { return heldBond != nullptr; }
+	bool HasTimedOut(int currentStep) const {
+		return (currentStep - assignedStep) >= timeoutSteps;
+	}
 
 	// Snapshot persistence
 	nlohmann::json Save() const;
-
-private:
-	const Recipe* m_recipe;       // Specialization (non-owning, points into RecipeBook)
-	int m_creationStep;
-	int m_timeoutSteps;
-	int m_lastSuccessStep;        // Step of last successful assembly (or creation step)
-	int m_successCount = 0;
-	State m_state = State::SEARCHING;
-
-	// Get the molecular formula for an atom (element symbol if free, molecule formula if bonded)
-	static std::string GetAtomFormula(const Atom* atom);
-
-	// Find an atom with free valence in the molecule containing 'anchor'
-	static Atom* FindBondableAtom(Atom* anchor);
 };
+
+// Free helper functions used by Reactor during daemon processing
+std::string GetEntityFormula(const Atom* atom);
+Atom* FindBondableAtomInEntity(Atom* anchor);
 
 } // namespace Chemistry

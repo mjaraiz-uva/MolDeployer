@@ -19,30 +19,19 @@ namespace Chemistry {
 // Ensures chemistry time series are registered (called during initialization)
 void EnsureTimeSeriesRegistration();
 
-// The Reactor is the simulation container that owns all atoms, bonds, and molecules.
-// Analogous to Region::Region in the economic model.
-//
-// It drives the simulation loop: atom movement, spatial hashing, bond formation/breaking,
-// molecule tracking via union-find, and statistics collection.
 class Reactor {
 public:
     Reactor(const std::string& name = "DefaultReactor");
     ~Reactor();
 
-    // Initialization: creates atoms according to config, sets up spatial grid
     bool Initialize();
-
-    // Run one simulation timestep (replaces Region::RunMonthlyActivity)
     void RunTimestep(int step);
-
-    // Cleanup all entities
     void Cleanup();
 
-    // Snapshot persistence: serialize/deserialize full reactor state to/from JSON
     nlohmann::json SaveSnapshot() const;
     bool LoadSnapshot(const nlohmann::json& snapshot);
 
-    // --- Statistics getters (called by Simulator/DataManager after each step) ---
+    // --- Statistics getters ---
 
     double GetTotalBondEnergy() const { return m_totalBondEnergy; }
     int GetMoleculeCount() const { return m_moleculeCount; }
@@ -53,8 +42,10 @@ public:
     int GetFormationEventsThisStep() const { return m_formationEventsThisStep; }
     int GetBreakingEventsThisStep() const { return m_breakingEventsThisStep; }
 
-    // Daemon statistics
-    int GetActiveDaemonCount() const { return static_cast<int>(m_daemons.size()); }
+    // Daemon statistics (riding daemons)
+    int GetActiveDaemonCount() const;
+    int GetSearchingDaemonCount() const;
+    int GetHoldingDaemonCount() const;
     int GetDaemonSpawnedThisStep() const { return m_daemonSpawnedThisStep; }
     int GetDaemonSuccessThisStep() const { return m_daemonSuccessThisStep; }
     int GetDaemonDeathsThisStep() const { return m_daemonDeathsThisStep; }
@@ -63,12 +54,8 @@ public:
     int GetMoleculeCountByFormula(const std::string& formula) const;
     const std::map<std::string, int>& GetMoleculeCensus() const { return m_moleculeCensus; }
 
-    // --- Entity access ---
-
     size_t GetAtomCount() const { return m_atoms.size(); }
     const Atom* GetAtomByIndex(size_t index) const;
-
-    // Current simulation step
     int GetCurrentStep() const { return m_currentStep; }
 
 private:
@@ -78,15 +65,16 @@ private:
     void ApplyBoundaryConditions();
     void AttemptBondBreaking();
     void AttemptBondFormation();
-    void UpdateMolecules();   // Union-find connected components
+    void UpdateMolecules();
     void CalculateStats();
 
-    // --- Daemon lifecycle ---
-    void MoveDaemons(double dt);
-    void ApplyDaemonBoundaryConditions();
-    void RunDaemons();           // Each daemon searches + assembles
-    void SpawnNewDaemons();      // Random new daemons
-    void CullDeadDaemons();      // Remove timed-out / dead daemons
+    // --- Riding daemon lifecycle ---
+    void AssignInitialDaemons();
+    void RunAtomDaemons();
+    void HandleSearchingDaemon(Atom* atom, size_t atomIndex, DaemonState* ds);
+    void HandleHoldingDaemon(Atom* atom, DaemonState* ds);
+    void ReassignDaemon(Atom* atom);
+    void SpawnOffspringDaemon(Atom* neighbor, const Recipe* parentRecipe);
 
     // --- Bond management helpers ---
 
@@ -108,9 +96,7 @@ private:
     std::vector<std::unique_ptr<Bond>> m_bonds;
     std::vector<std::unique_ptr<Molecule>> m_molecules;
 
-    // Darwinian daemons (independent spatial agents)
-    std::vector<std::unique_ptr<Daemon>> m_daemons;
-    int m_nextDaemonId = 0;
+    // Daemon per-step counters
     int m_daemonSpawnedThisStep = 0;
     int m_daemonSuccessThisStep = 0;
     int m_daemonDeathsThisStep = 0;
@@ -118,7 +104,7 @@ private:
     // Spatial acceleration
     SpatialGrid m_spatialGrid;
 
-    // Simulation parameters (read from DataManager config at Initialize)
+    // Simulation parameters
     Vec3 m_boxSize;
     double m_temperature = 1000.0;
     double m_dt = 1.0;
@@ -135,7 +121,7 @@ private:
     int m_breakingEventsThisStep = 0;
     std::map<std::string, int> m_moleculeCensus;
 
-    // Union-find arrays (reused each step to avoid allocation)
+    // Union-find arrays
     std::vector<int> m_ufParent;
     std::vector<int> m_ufRank;
 

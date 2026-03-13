@@ -26,6 +26,9 @@ public:
 	// Get all recipes that produce a given target formula
 	const std::vector<Recipe>& GetRecipesFor(const std::string& targetFormula) const;
 
+	// Get all recipes that USE a given formula as an input component (A or B)
+	const std::vector<const Recipe*>& GetRecipesUsing(const std::string& formula) const;
+
 	// Get list of all target formulas that have recipes
 	const std::vector<std::string>& GetAllTargets() const { return m_allTargets; }
 
@@ -48,8 +51,12 @@ private:
 	// Sorted list of all target formulas
 	std::vector<std::string> m_allTargets;
 
-	// Empty vector for GetRecipesFor when target not found
+	// Reverse index: formula -> recipes that use it as componentA or componentB
+	std::unordered_map<std::string, std::vector<const Recipe*>> m_recipesByComponent;
+
+	// Empty vectors for lookups when key not found
 	static const std::vector<Recipe> s_emptyRecipes;
+	static const std::vector<const Recipe*> s_emptyRecipePtrs;
 };
 
 } // namespace Chemistry

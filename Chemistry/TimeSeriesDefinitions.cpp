@@ -148,13 +148,21 @@ namespace {
                 ImPlotMarker_Up);
 
             // ===== DARWINIAN ASSEMBLY =====
-            RegisterTS("active_daemons", "Active Daemons", "Count",
+            RegisterTS("searching_daemons", "Searching Daemons", "Count",
                 []() {
                     auto reactor = GetReactorSafe();
-                    return reactor ? static_cast<float>(reactor->GetActiveDaemonCount()) : 0.0f;
+                    return reactor ? static_cast<float>(reactor->GetSearchingDaemonCount()) : 0.0f;
                 },
                 ImVec4(0.8f, 0.2f, 0.8f, 1.0f),
                 ImPlotMarker_Circle);
+
+            RegisterTS("holding_daemons", "Holding Daemons", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    return reactor ? static_cast<float>(reactor->GetHoldingDaemonCount()) : 0.0f;
+                },
+                ImVec4(0.2f, 0.8f, 0.8f, 1.0f),
+                ImPlotMarker_Square);
 
             RegisterTS("daemon_spawns", "Daemon Spawns/step", "Count",
                 []() {
@@ -274,7 +282,7 @@ namespace {
                 DataManager::PlotWindowDefinition def;
                 def.windowName = "Darwinian Assembly";
                 def.plotTitle = "##DarwinianAssembly";
-                def.seriesIds = { "active_daemons", "daemon_spawns", "daemon_successes", "daemon_deaths" };
+                def.seriesIds = { "searching_daemons", "holding_daemons", "daemon_spawns", "daemon_successes", "daemon_deaths" };
                 def.legendLocation = ImPlotLocation_SouthEast;
                 def.legendOutside = true;
                 def.ticksEvery = 1000;

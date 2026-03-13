@@ -5,6 +5,7 @@
 namespace Chemistry {
 
 const std::vector<Recipe> RecipeBook::s_emptyRecipes;
+const std::vector<const Recipe*> RecipeBook::s_emptyRecipePtrs;
 
 RecipeBook& RecipeBook::GetInstance() {
 	static RecipeBook instance;
@@ -57,6 +58,15 @@ void RecipeBook::InitDefaultRecipes() {
 		m_allTargets.push_back(target);
 	}
 	std::sort(m_allTargets.begin(), m_allTargets.end());
+
+	// Build reverse index: component formula -> recipes that use it as input
+	m_recipesByComponent.clear();
+	for (const auto& recipe : m_allRecipes) {
+		m_recipesByComponent[recipe.componentA].push_back(&recipe);
+		if (recipe.componentB != recipe.componentA) {
+			m_recipesByComponent[recipe.componentB].push_back(&recipe);
+		}
+	}
 }
 
 const std::vector<Recipe>& RecipeBook::GetRecipesFor(const std::string& targetFormula) const {
@@ -65,6 +75,14 @@ const std::vector<Recipe>& RecipeBook::GetRecipesFor(const std::string& targetFo
 		return it->second;
 	}
 	return s_emptyRecipes;
+}
+
+const std::vector<const Recipe*>& RecipeBook::GetRecipesUsing(const std::string& formula) const {
+	auto it = m_recipesByComponent.find(formula);
+	if (it != m_recipesByComponent.end()) {
+		return it->second;
+	}
+	return s_emptyRecipePtrs;
 }
 
 const Recipe& RecipeBook::GetRandomRecipe(std::mt19937& rng) const {
