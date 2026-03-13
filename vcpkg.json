@@ -1,0 +1,13 @@
+{
+  "name": "depx",
+  "version": "1.0.0",
+  "dependencies": [
+    {
+      "name": "imgui",
+      "features": ["docking-experimental", "glfw-binding", "opengl3-binding"]
+    },
+    "implot",
+    "glfw3",
+    "glad"
+  ]
+}
