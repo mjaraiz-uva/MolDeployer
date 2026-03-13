@@ -94,7 +94,7 @@ struct PlotPersistentState {
     ImPlotLocation legendLocation = ImPlotLocation_NorthWest;  // Default legend location
     bool legendOutside = false;                               // Default legend outside status
     bool showLine = true;                                     // Default to show lines
-    bool showMarkers = true;                                  // Default to show markers 
+    bool showMarkers = false;                                 // Default off to avoid 16-bit vertex overflow
     int markerSize = 2;                                       // Default marker size (0=auto, 1-5 for specific sizes)
 };
 

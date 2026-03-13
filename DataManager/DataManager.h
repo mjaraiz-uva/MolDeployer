@@ -21,7 +21,7 @@ namespace DataManager {
 		int legendLocation = 10;      // ImPlotLocation value
 		bool legendOutside = false;
 		bool showLine = true;
-		bool showMarkers = true;
+		bool showMarkers = false;
 		int markerSize = 2;
 	};
 
@@ -65,6 +65,8 @@ namespace DataManager {
 		int displaySizeX = 1280;
 		int displaySizeY = 720;
 		bool logToConsole = true;
+		bool autoStart = false;
+		bool testPersistence = false;  // Run persistence test on startup
 		float plotDelaySec = 0.01f;
 		std::string uiTheme = "dark";
 

@@ -30,7 +30,7 @@ namespace Visualizer {
 			state.legendLocation = defaultLocation;
 			state.legendOutside = defaultOutside;
 			state.showLine = true;
-			state.showMarkers = true;
+			state.showMarkers = false;
 			state.markerSize = 2;
 			m_plotStates[plotName] = state;
 		}
@@ -75,7 +75,7 @@ namespace Visualizer {
 		newState.legendLocation = ImPlotLocation_NorthWest;
 		newState.legendOutside = false;
 		newState.showLine = true;
-		newState.showMarkers = true;
+		newState.showMarkers = false;
 		newState.markerSize = 2;
 
 		return &newState;

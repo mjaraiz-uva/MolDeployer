@@ -6,12 +6,6 @@
 #include "../InterfaceGUI/InterfaceGUI.h"
 #include "../Simulator/Simulator.h"
 
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <unistd.h>
-#endif
-
 namespace Logger {
 
 static std::ofstream g_log_file;
@@ -22,29 +16,6 @@ static bool g_enable_info_gui_output = true;
 static bool g_enable_debug_gui_output = true;
 static bool g_enable_warning_gui_output = true;
 static bool g_enable_error_gui_output = true;
-
-static int GetProcessID() {
-#ifdef _WIN32
-    return static_cast<int>(GetCurrentProcessId());
-#else
-    return static_cast<int>(getpid());
-#endif
-}
-
-// Full date+time: "2026-03-13 13:30:08"
-static std::string GetDateTimeStamp() {
-    auto now = std::chrono::system_clock::now();
-    auto in_time_t = std::chrono::system_clock::to_time_t(now);
-    std::stringstream ss;
-#ifdef _MSC_VER
-    struct tm timeinfo;
-    localtime_s(&timeinfo, &in_time_t);
-    ss << std::put_time(&timeinfo, "%Y-%m-%d %H:%M:%S");
-#else
-    ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%d %H:%M:%S");
-#endif
-    return ss.str();
-}
 
 // Time only: "13:30:08"
 static std::string GetTimeStamp() {
@@ -61,15 +32,11 @@ static std::string GetTimeStamp() {
     return ss.str();
 }
 
-// Format: full date+time for non-timestep lines, time-only for timestep lines
-// Step < 0 means no simulation running -> use full date+time + PID
 static std::string FormatPrefix(const char* level) {
     int current_step = Simulator::GetCurrentStepCalculated();
     if (current_step < 0) {
-        // No simulation running: full datetime + PID
-        return "[" + GetDateTimeStamp() + "] [PID:" + std::to_string(GetProcessID()) + "] [" + level + "] ";
+        return "[" + GetTimeStamp() + "] [" + level + "] ";
     } else {
-        // During simulation: time-only + step
         return "[" + GetTimeStamp() + "] [step:" + std::to_string(current_step) + "] [" + level + "] ";
     }
 }

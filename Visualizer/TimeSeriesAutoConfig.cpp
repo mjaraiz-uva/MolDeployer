@@ -78,7 +78,7 @@ namespace Visualizer {
 
         // Get global plot settings from interface
         bool showLine = true;
-        bool showMarkers = true;
+        bool showMarkers = false;
         float markerSize = 2.0f;
 
         auto& plotManager = TimeSeriesPlotManager::GetInstance();

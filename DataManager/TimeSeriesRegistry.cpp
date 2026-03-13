@@ -107,4 +107,38 @@ namespace DataManager {
         );
     }
 
+    nlohmann::json TimeSeriesRegistry::SaveAllSeriesData(int upToStep) const {
+        nlohmann::json result = nlohmann::json::object();
+        for (const auto& [id, series] : m_series) {
+            int count = std::min(upToStep + 1, static_cast<int>(series.data.size()));
+            // Save only the data up to the current step (not the full pre-allocated array)
+            result[id] = nlohmann::json::array();
+            for (int i = 0; i < count; ++i) {
+                result[id].push_back(series.data[i]);
+            }
+        }
+        Logger::Info("TimeSeriesRegistry: Saved " + std::to_string(result.size())
+            + " series, each up to step " + std::to_string(upToStep));
+        return result;
+    }
+
+    void TimeSeriesRegistry::LoadAllSeriesData(const nlohmann::json& data) {
+        int restored = 0;
+        for (auto& [id, values] : data.items()) {
+            auto it = m_series.find(id);
+            if (it == m_series.end()) {
+                Logger::Warning("TimeSeriesRegistry: Series '" + id + "' in snapshot not found in registry, skipping.");
+                continue;
+            }
+            auto& series = it->second;
+            int count = std::min(static_cast<int>(values.size()),
+                                 static_cast<int>(series.data.size()));
+            for (int i = 0; i < count; ++i) {
+                series.data[i] = values[i].get<float>();
+            }
+            restored++;
+        }
+        Logger::Info("TimeSeriesRegistry: Restored " + std::to_string(restored) + " series from snapshot.");
+    }
+
 } // namespace DataManager

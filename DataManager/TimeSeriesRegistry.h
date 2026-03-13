@@ -3,6 +3,7 @@
 #include <vector>
 #include <unordered_map>
 #include <functional>
+#include <nlohmann/json.hpp>
 #include <imgui.h>
 #include <implot.h>
 
@@ -57,6 +58,10 @@ namespace DataManager {
         // Dynamic plot management
         void AddDynamicPlotWindow(const PlotWindowDefinition& def);
         void RemoveDynamicPlotWindow(const std::string& windowName);
+
+        // Snapshot persistence: save/load all series data up to a given step
+        nlohmann::json SaveAllSeriesData(int upToStep) const;
+        void LoadAllSeriesData(const nlohmann::json& data);
 
     private:
         std::unordered_map<std::string, TimeSeriesDefinition> m_series;

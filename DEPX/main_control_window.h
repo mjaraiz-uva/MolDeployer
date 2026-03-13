@@ -28,8 +28,12 @@ private:
     void renderInterfaceSettings();
     void changeTheme(ThemeManager::ThemeType newTheme);
 
+    // Snapshot operations (buttons in Simulation Control)
+    void saveSnapshot();
+    void loadSnapshot();
+
     // Configuration
-    std::string m_configPath;
+    char m_simulationName[256] = {};
 
     // Theme
     bool m_showThemeNotification = false;

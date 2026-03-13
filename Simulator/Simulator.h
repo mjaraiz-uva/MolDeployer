@@ -40,6 +40,14 @@ namespace Simulator {
 
     std::string StateToString(SimulationState state);
 
+    // Snapshot persistence: save/load full simulation state (reactor + RNG) to/from file
+    bool SaveSnapshot(const std::string& filename);
+    bool LoadSnapshot(const std::string& filename);
+
+    // In-process persistence test: verifies that save/load produces identical results
+    // Returns true if the test passes. Logs results.
+    bool TestPersistence(int saveAtStep = 7000, int verifyAtStep = 8000);
+
 } // namespace Simulator
 
 #endif // SIMULATOR_H

@@ -5,6 +5,7 @@
 #include <string>
 #include <map>
 #include <random>
+#include <nlohmann/json.hpp>
 #include "Vec3.h"
 #include "Atom.h"
 #include "Bond.h"
@@ -35,6 +36,10 @@ public:
 
     // Cleanup all entities
     void Cleanup();
+
+    // Snapshot persistence: serialize/deserialize full reactor state to/from JSON
+    nlohmann::json SaveSnapshot() const;
+    bool LoadSnapshot(const nlohmann::json& snapshot);
 
     // --- Statistics getters (called by Simulator/DataManager after each step) ---
 

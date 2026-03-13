@@ -195,6 +195,8 @@ namespace DataManager {
 				LoadField(configJson, "displaySizeX", g_config_parameters.displaySizeX);
 				LoadField(configJson, "displaySizeY", g_config_parameters.displaySizeY);
 				LoadField(configJson, "logToConsole", g_config_parameters.logToConsole);
+				LoadField(configJson, "autoStart", g_config_parameters.autoStart);
+				LoadField(configJson, "testPersistence", g_config_parameters.testPersistence);
 				LoadField(configJson, "plotDelaySec", g_config_parameters.plotDelaySec);
 				LoadField(configJson, "uiTheme", g_config_parameters.uiTheme);
 
@@ -254,7 +256,7 @@ namespace DataManager {
 		std::lock_guard<std::mutex> lock(g_config_mutex);
 		std::lock_guard<std::mutex> rng_lock(g_rng_mutex);
 		std::string filename = g_config_parameters.simulationName + ".json";
-		Logger::Info("DataManager: Attempting to save configuration to: " + filename);
+		Logger::Debug("DataManager: Saving configuration to: " + filename);
 
 		// Build JSON from current parameters
 		configJson["simulationName"] = g_config_parameters.simulationName;
@@ -278,6 +280,8 @@ namespace DataManager {
 		configJson["displaySizeX"] = g_config_parameters.displaySizeX;
 		configJson["displaySizeY"] = g_config_parameters.displaySizeY;
 		configJson["logToConsole"] = g_config_parameters.logToConsole;
+		configJson["autoStart"] = g_config_parameters.autoStart;
+		configJson["testPersistence"] = g_config_parameters.testPersistence;
 		configJson["plotDelaySec"] = g_config_parameters.plotDelaySec;
 		configJson["uiTheme"] = g_config_parameters.uiTheme;
 
@@ -308,7 +312,7 @@ namespace DataManager {
 
 		try {
 			configFile << configJson.dump(4);
-			Logger::Info("DataManager: Configuration saved successfully to " + filename);
+			Logger::Debug("DataManager: Configuration saved to " + filename);
 			return true;
 		}
 		catch (const std::exception& e) {

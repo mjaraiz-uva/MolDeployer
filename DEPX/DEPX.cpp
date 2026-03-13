@@ -40,7 +40,7 @@ static void glfw_window_size_callback(GLFWwindow* window, int width, int height)
     // Update DataManager with the new window size
     // This ensures that if the application saves its config, it saves the latest size.
     DataManager::UpdateDisplaySize(width, height);
-    Logger::Info("Window resized to: " + std::to_string(width) + "x" + std::to_string(height));
+    Logger::Debug("Window resized to: " + std::to_string(width) + "x" + std::to_string(height));
 }
 
 // --- Backend-Specific Function Implementations ---
@@ -237,6 +237,19 @@ int main() {
 
     // Chemistry parameters are managed via ConfigParameters, no per-frame variable needed here
 
+    // Run persistence test if configured
+    if (DataManager::GetConfigParameters().testPersistence) {
+        Simulator::TestPersistence(7000, 8000);
+        // Reset the flag so it doesn't run again on next launch
+        DataManager::GetMutableConfigParameters().testPersistence = false;
+    }
+
+    // Auto-start simulation if configured
+    if (DataManager::GetConfigParameters().autoStart) {
+        Logger::Info("Auto-starting simulation (autoStart=true in config).");
+        Simulator::StartAsyncCalculation();
+    }
+
     // Main loop
     bool done = false;
     while (!done) {
@@ -298,10 +311,8 @@ int main() {
         // The logic for starting/stopping simulation is now handled by buttons within DrawUI
         // which call Simulator functions directly.
 
-        // Optional: Check if new data is available to explicitly log or update something
-        if (DataManager::CheckAndResetNewDataFlag()) {
-            Logger::Info("DEPX: New data from simulator processed by UI or available."); // Changed to Info
-        }
+        // Check if new data is available (consumed by UI plotting)
+        DataManager::CheckAndResetNewDataFlag();
 
         // End the frame for InterfaceGUI (which calls Visualizer::Render -> ImGui::Render and ImGui_ImplOpenGL3_RenderDrawData)
         ClearScreen(); // Clear the screen before rendering ImGui

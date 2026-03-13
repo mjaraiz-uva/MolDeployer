@@ -108,6 +108,115 @@ void Reactor::Cleanup() {
     m_moleculeCensus.clear();
 }
 
+// --- Snapshot persistence ---
+
+nlohmann::json Reactor::SaveSnapshot() const {
+    nlohmann::json snap;
+    snap["currentStep"] = m_currentStep;
+    snap["nextBondId"] = m_nextBondId;
+    snap["nextMoleculeId"] = m_nextMoleculeId;
+
+    // Serialize atoms
+    auto& atomsArr = snap["atoms"];
+    atomsArr = nlohmann::json::array();
+    for (const auto& atom : m_atoms) {
+        nlohmann::json a;
+        a["id"] = atom->GetID();
+        a["element"] = static_cast<int>(atom->GetElement());
+        const Vec3& p = atom->GetPosition();
+        const Vec3& v = atom->GetVelocity();
+        a["px"] = p.x; a["py"] = p.y; a["pz"] = p.z;
+        a["vx"] = v.x; a["vy"] = v.y; a["vz"] = v.z;
+        atomsArr.push_back(a);
+    }
+
+    // Serialize bonds
+    auto& bondsArr = snap["bonds"];
+    bondsArr = nlohmann::json::array();
+    for (const auto& bond : m_bonds) {
+        nlohmann::json b;
+        b["id"] = bond->id;
+        b["atom1"] = bond->atom1->GetID();
+        b["atom2"] = bond->atom2->GetID();
+        b["order"] = static_cast<int>(bond->order);
+        b["energy"] = bond->energy;
+        b["formationStep"] = bond->formationStep;
+        bondsArr.push_back(b);
+    }
+
+    return snap;
+}
+
+bool Reactor::LoadSnapshot(const nlohmann::json& snapshot) {
+    Cleanup();
+
+    // Read config parameters (same as Initialize, but without creating random atoms)
+    const auto& config = DataManager::GetConfigParameters();
+    m_boxSize = { config.boxSizeX, config.boxSizeY, config.boxSizeZ };
+    m_temperature = config.temperature;
+    m_dt = config.dt;
+
+    auto& chemConfig = ChemistryConfig::GetInstance();
+    chemConfig.A_form = config.A_form;
+    chemConfig.A_break = config.A_break;
+    chemConfig.activationFraction = config.activationFraction;
+
+    m_spatialGrid.Configure(m_boxSize, config.interactionCutoff);
+
+    // Restore step counters
+    m_currentStep = snapshot["currentStep"].get<int>();
+    m_nextBondId = snapshot["nextBondId"].get<int>();
+    m_nextMoleculeId = snapshot["nextMoleculeId"].get<int>();
+
+    // Restore atoms
+    for (const auto& atomData : snapshot["atoms"]) {
+        int id = atomData["id"].get<int>();
+        Element elem = static_cast<Element>(atomData["element"].get<int>());
+        auto atom = std::make_unique<Atom>(id, elem);
+        atom->SetPosition({ atomData["px"].get<double>(),
+                            atomData["py"].get<double>(),
+                            atomData["pz"].get<double>() });
+        atom->SetVelocity({ atomData["vx"].get<double>(),
+                            atomData["vy"].get<double>(),
+                            atomData["vz"].get<double>() });
+        m_atoms.push_back(std::move(atom));
+    }
+
+    // Restore bonds (atoms must exist first; atoms are indexed by ID = vector index)
+    for (const auto& bondData : snapshot["bonds"]) {
+        auto bond = std::make_unique<Bond>();
+        bond->id = bondData["id"].get<int>();
+        bond->atom1 = m_atoms[bondData["atom1"].get<int>()].get();
+        bond->atom2 = m_atoms[bondData["atom2"].get<int>()].get();
+        bond->order = static_cast<BondOrder>(bondData["order"].get<int>());
+        bond->energy = bondData["energy"].get<double>();
+        bond->formationStep = bondData["formationStep"].get<int>();
+        bond->markedForRemoval = false;
+
+        int orderVal = static_cast<int>(bond->order);
+        bond->atom1->AddBond(bond.get(), orderVal);
+        bond->atom2->AddBond(bond.get(), orderVal);
+
+        m_bonds.push_back(std::move(bond));
+    }
+
+    // Pre-allocate union-find arrays
+    m_ufParent.resize(m_atoms.size());
+    m_ufRank.resize(m_atoms.size());
+
+    // Rebuild molecules and stats from restored bonds
+    UpdateMolecules();
+    CalculateStats();
+
+    m_initialized = true;
+
+    Logger::Info("Reactor: Loaded snapshot at step " + std::to_string(m_currentStep)
+        + " with " + std::to_string(m_atoms.size()) + " atoms and "
+        + std::to_string(m_bonds.size()) + " bonds.");
+
+    return true;
+}
+
 // --- Timestep sub-operations ---
 
 void Reactor::MoveAtoms(double dt) {

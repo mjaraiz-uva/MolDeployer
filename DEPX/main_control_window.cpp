@@ -9,9 +9,16 @@
 #include "../Logger/Logger.h"
 #include "../DataManager/DataManager.h"
 
-MainControlWindow::MainControlWindow()
-    : m_configPath("config.json") {
+#ifdef _WIN32
+#include <windows.h>
+#include <commdlg.h>
+#endif
+
+MainControlWindow::MainControlWindow() {
     loadConfiguration();
+    // Initialize name buffer from loaded config
+    const auto& name = DataManager::GetConfigParameters().simulationName;
+    strncpy_s(m_simulationName, sizeof(m_simulationName), name.c_str(), _TRUNCATE);
 }
 
 void MainControlWindow::render() {
@@ -100,11 +107,34 @@ void MainControlWindow::renderSimulatorControls() {
         }
         ImGui::PopStyleColor(3);
 
+        ImGui::SameLine();
+
+        // Save Snapshot button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.3f, 0.5f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.36f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.24f, 0.4f, 1.0f));
+        if (ImGui::Button("Save")) {
+            saveSnapshot();
+        }
+        ImGui::PopStyleColor(3);
+
+        ImGui::SameLine();
+
+        // Load Snapshot button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.3f, 0.2f, 0.5f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.36f, 0.24f, 0.6f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.24f, 0.16f, 0.4f, 1.0f));
+        if (ImGui::Button("Load")) {
+            loadSnapshot();
+        }
+        ImGui::PopStyleColor(3);
+
         // Calculation delay
         ImGui::Separator();
         ImGui::Text("Delay (s)");
         ImGui::SetNextItemWidth(100);
-        if (ImGui::InputFloat("##Delay", &m_plotDelaySec, 0.0f, 0.0f, "%.3f")) {
+        ImGui::InputFloat("##Delay", &m_plotDelaySec, 0.0f, 0.0f, "%.3f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (m_plotDelaySec < 0.001f) m_plotDelaySec = 0.001f;
             if (m_plotDelaySec > 2.0f) m_plotDelaySec = 2.0f;
             Simulator::SetCalculationDelay(m_plotDelaySec);
@@ -117,13 +147,6 @@ void MainControlWindow::renderSimulatorControls() {
 void MainControlWindow::renderMenuBar() {
     if (ImGui::BeginMainMenuBar()) {
         if (ImGui::BeginMenu("Simulation")) {
-            if (ImGui::MenuItem("Load Configuration...")) {
-                // TODO: File dialog
-            }
-            if (ImGui::MenuItem("Save Configuration...")) {
-                saveConfiguration();
-            }
-            ImGui::Separator();
             if (ImGui::MenuItem("Exit")) {
                 // Set exit flag
             }
@@ -153,6 +176,18 @@ void MainControlWindow::renderMenuBar() {
 
 void MainControlWindow::renderParameterControls() {
     if (ImGui::Begin("Simulation Parameters")) {
+        // Simulation name
+        ImGui::Text("Simulation Name");
+        ImGui::SetNextItemWidth(200);
+        ImGui::InputText("##SimName", m_simulationName, sizeof(m_simulationName));
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            auto& config = DataManager::GetMutableConfigParameters();
+            config.simulationName = m_simulationName;
+            saveConfiguration();
+            Logger::Info("Simulation name changed to: " + std::string(m_simulationName));
+        }
+
+        ImGui::Separator();
         ImGui::Text("Chemistry Parameters");
         ImGui::Separator();
 
@@ -160,7 +195,8 @@ void MainControlWindow::renderParameterControls() {
         ImGui::Text("Temperature (K)");
         ImGui::SetNextItemWidth(150);
         float tempFloat = static_cast<float>(m_temperature);
-        if (ImGui::InputFloat("##Temperature", &tempFloat, 0.0f, 0.0f, "%.1f")) {
+        ImGui::InputFloat("##Temperature", &tempFloat, 0.0f, 0.0f, "%.1f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (tempFloat < 1.0f) tempFloat = 1.0f;
             if (tempFloat > 100000.0f) tempFloat = 100000.0f;
             m_temperature = tempFloat;
@@ -172,17 +208,20 @@ void MainControlWindow::renderParameterControls() {
         // Atom counts
         ImGui::Text("Atom Counts");
         ImGui::SetNextItemWidth(100);
-        if (ImGui::InputInt("C atoms##NumCarbon", &m_numCarbon, 0, 0)) {
+        ImGui::InputInt("C atoms##NumCarbon", &m_numCarbon, 0, 0);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (m_numCarbon < 0) m_numCarbon = 0;
             saveConfiguration();
         }
         ImGui::SetNextItemWidth(100);
-        if (ImGui::InputInt("H atoms##NumHydrogen", &m_numHydrogen, 0, 0)) {
+        ImGui::InputInt("H atoms##NumHydrogen", &m_numHydrogen, 0, 0);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (m_numHydrogen < 0) m_numHydrogen = 0;
             saveConfiguration();
         }
         ImGui::SetNextItemWidth(100);
-        if (ImGui::InputInt("O atoms##NumOxygen", &m_numOxygen, 0, 0)) {
+        ImGui::InputInt("O atoms##NumOxygen", &m_numOxygen, 0, 0);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (m_numOxygen < 0) m_numOxygen = 0;
             saveConfiguration();
         }
@@ -196,7 +235,8 @@ void MainControlWindow::renderParameterControls() {
 
         float boxX = static_cast<float>(m_boxSizeX);
         ImGui::SetNextItemWidth(100);
-        if (ImGui::InputFloat("X##BoxX", &boxX, 0.0f, 0.0f, "%.1f")) {
+        ImGui::InputFloat("X##BoxX", &boxX, 0.0f, 0.0f, "%.1f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (boxX < 1.0f) boxX = 1.0f;
             m_boxSizeX = boxX;
             saveConfiguration();
@@ -204,7 +244,8 @@ void MainControlWindow::renderParameterControls() {
         ImGui::SameLine();
         float boxY = static_cast<float>(m_boxSizeY);
         ImGui::SetNextItemWidth(100);
-        if (ImGui::InputFloat("Y##BoxY", &boxY, 0.0f, 0.0f, "%.1f")) {
+        ImGui::InputFloat("Y##BoxY", &boxY, 0.0f, 0.0f, "%.1f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (boxY < 1.0f) boxY = 1.0f;
             m_boxSizeY = boxY;
             saveConfiguration();
@@ -212,7 +253,8 @@ void MainControlWindow::renderParameterControls() {
         ImGui::SameLine();
         float boxZ = static_cast<float>(m_boxSizeZ);
         ImGui::SetNextItemWidth(100);
-        if (ImGui::InputFloat("Z##BoxZ", &boxZ, 0.0f, 0.0f, "%.1f")) {
+        ImGui::InputFloat("Z##BoxZ", &boxZ, 0.0f, 0.0f, "%.1f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (boxZ < 1.0f) boxZ = 1.0f;
             m_boxSizeZ = boxZ;
             saveConfiguration();
@@ -223,7 +265,8 @@ void MainControlWindow::renderParameterControls() {
 
         float cutoff = static_cast<float>(m_interactionCutoff);
         ImGui::SetNextItemWidth(100);
-        if (ImGui::InputFloat("Cutoff##Cutoff", &cutoff, 0.0f, 0.0f, "%.1f")) {
+        ImGui::InputFloat("Cutoff##Cutoff", &cutoff, 0.0f, 0.0f, "%.1f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (cutoff < 0.1f) cutoff = 0.1f;
             m_interactionCutoff = cutoff;
             saveConfiguration();
@@ -231,7 +274,8 @@ void MainControlWindow::renderParameterControls() {
 
         float dtFloat = static_cast<float>(m_dt);
         ImGui::SetNextItemWidth(100);
-        if (ImGui::InputFloat("dt##Timestep", &dtFloat, 0.0f, 0.0f, "%.3f")) {
+        ImGui::InputFloat("dt##Timestep", &dtFloat, 0.0f, 0.0f, "%.3f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (dtFloat < 0.001f) dtFloat = 0.001f;
             m_dt = dtFloat;
             saveConfiguration();
@@ -240,7 +284,8 @@ void MainControlWindow::renderParameterControls() {
         ImGui::Separator();
         ImGui::Text("Max Steps");
         ImGui::SetNextItemWidth(120);
-        if (ImGui::InputInt("##MaxSteps", &m_maxSteps, 0, 0)) {
+        ImGui::InputInt("##MaxSteps", &m_maxSteps, 0, 0);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
             if (m_maxSteps < 1) m_maxSteps = 1;
             if (m_maxSteps > 10000000) m_maxSteps = 10000000;
             saveConfiguration();
@@ -358,6 +403,42 @@ void MainControlWindow::saveConfiguration() {
     catch (const std::exception& e) {
         Logger::Error(std::string("Error saving configuration: ") + e.what());
     }
+}
+
+void MainControlWindow::saveSnapshot() {
+    // Auto-generate filename: simulationname_step.json
+    int currentStep = Simulator::GetCurrentStepCalculated();
+    std::string name = DataManager::GetConfigParameters().simulationName;
+    if (currentStep < 0) currentStep = 0;
+    std::string filename = name + "_" + std::to_string(currentStep) + ".json";
+
+    if (Simulator::SaveSnapshot(filename)) {
+        Logger::Info("Snapshot saved: " + filename);
+    }
+}
+
+void MainControlWindow::loadSnapshot() {
+#ifdef _WIN32
+    char filename[MAX_PATH] = {};
+    OPENFILENAMEA ofn = {};
+    ofn.lStructSize = sizeof(ofn);
+    ofn.hwndOwner = NULL;
+    ofn.lpstrFilter = "Snapshot Files (*.json)\0*.json\0All Files (*.*)\0*.*\0";
+    ofn.lpstrFile = filename;
+    ofn.nMaxFile = MAX_PATH;
+    ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+    ofn.lpstrTitle = "Load Snapshot";
+
+    if (GetOpenFileNameA(&ofn)) {
+        if (Simulator::LoadSnapshot(filename)) {
+            loadConfiguration();
+            // Update the simulation name buffer
+            const auto& name = DataManager::GetConfigParameters().simulationName;
+            strncpy_s(m_simulationName, sizeof(m_simulationName), name.c_str(), _TRUNCATE);
+            Logger::Info("Snapshot loaded: " + std::string(filename));
+        }
+    }
+#endif
 }
 
 void MainControlWindow::renderPlotControls() {
