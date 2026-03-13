@@ -19,7 +19,7 @@ namespace Visualizer {
         TimeSeriesPlotConfig config;
         config.windowName = plotDef.windowName;
         config.plotTitle = plotDef.plotTitle;
-        config.xAxisLabel = "Month";
+        config.xAxisLabel = "Timestep";
         config.yAxisLabel = "Value";
         config.legendLocation = plotDef.legendLocation;
         config.legendOutside = plotDef.legendOutside;

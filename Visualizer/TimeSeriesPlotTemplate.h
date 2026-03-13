@@ -63,7 +63,7 @@ struct TimeSeriesPlotConfig {
     TimeSeriesPlotConfig() : 
         windowName("Time Series Plot"),
         plotTitle("##TimeSeries"), // Default to no visible title (## prefix hides it)
-        xAxisLabel("Month"),
+        xAxisLabel("Timestep"),
         yAxisLabel("Value"),
         legendLocation(ImPlotLocation_NorthWest),
         legendOutside(true),

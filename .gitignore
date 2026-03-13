@@ -383,3 +383,6 @@ DEPX/DefaultSim.json
 DEPX/accesos.txt
 DEPX/notes.txt
 DEPX/_currentPLOTS.png
+
+# nuget.exe (downloaded tool, not source)
+nuget.exe
