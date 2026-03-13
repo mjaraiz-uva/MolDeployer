@@ -204,10 +204,12 @@
   <ItemGroup>
     <ClCompile Include="Atom.cpp" />
     <ClCompile Include="ChemistryConfig.cpp" />
+    <ClCompile Include="Daemon.cpp" />
     <ClCompile Include="Molecule.cpp" />
     <ClCompile Include="Particle.cpp" />
     <ClCompile Include="ParticleFactory.cpp" />
     <ClCompile Include="Reactor.cpp" />
+    <ClCompile Include="Recipe.cpp" />
     <ClCompile Include="SpatialGrid.cpp" />
     <ClCompile Include="TimeSeriesDefinitions.cpp" />
   </ItemGroup>
@@ -215,10 +217,12 @@
     <ClInclude Include="Atom.h" />
     <ClInclude Include="Bond.h" />
     <ClInclude Include="ChemistryConfig.h" />
+    <ClInclude Include="Daemon.h" />
     <ClInclude Include="Molecule.h" />
     <ClInclude Include="Particle.h" />
     <ClInclude Include="ParticleFactory.h" />
     <ClInclude Include="Reactor.h" />
+    <ClInclude Include="Recipe.h" />
     <ClInclude Include="SpatialGrid.h" />
     <ClInclude Include="Vec3.h" />
   </ItemGroup>

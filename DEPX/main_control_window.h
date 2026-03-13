@@ -58,6 +58,14 @@ private:
     double m_A_break = 1.0e-3;
     double m_activationFraction = 0.1;
 
+    // Darwinian daemon parameters
+    bool m_enableDaemons = false;
+    bool m_enableStochasticBonds = true;
+    double m_daemonSpawnRate = 1.0;
+    int m_daemonTimeout = 500;
+    int m_daemonMaxPopulation = 1000;
+    double m_daemonSpeed = 2.0;
+
     bool m_showImGuiDemo = false;
     bool m_showImPlotDemo = false;
 };

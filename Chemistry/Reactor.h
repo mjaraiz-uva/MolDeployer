@@ -12,6 +12,7 @@
 #include "Molecule.h"
 #include "SpatialGrid.h"
 #include "ChemistryConfig.h"
+#include "Daemon.h"
 
 namespace Chemistry {
 
@@ -52,6 +53,12 @@ public:
     int GetFormationEventsThisStep() const { return m_formationEventsThisStep; }
     int GetBreakingEventsThisStep() const { return m_breakingEventsThisStep; }
 
+    // Daemon statistics
+    int GetActiveDaemonCount() const { return static_cast<int>(m_daemons.size()); }
+    int GetDaemonSpawnedThisStep() const { return m_daemonSpawnedThisStep; }
+    int GetDaemonSuccessThisStep() const { return m_daemonSuccessThisStep; }
+    int GetDaemonDeathsThisStep() const { return m_daemonDeathsThisStep; }
+
     int GetFreeAtomCountByElement(Element e) const;
     int GetMoleculeCountByFormula(const std::string& formula) const;
     const std::map<std::string, int>& GetMoleculeCensus() const { return m_moleculeCensus; }
@@ -74,6 +81,13 @@ private:
     void UpdateMolecules();   // Union-find connected components
     void CalculateStats();
 
+    // --- Daemon lifecycle ---
+    void MoveDaemons(double dt);
+    void ApplyDaemonBoundaryConditions();
+    void RunDaemons();           // Each daemon searches + assembles
+    void SpawnNewDaemons();      // Random new daemons
+    void CullDeadDaemons();      // Remove timed-out / dead daemons
+
     // --- Bond management helpers ---
 
     Bond* CreateBond(Atom* a1, Atom* a2, BondOrder order, int step);
@@ -93,6 +107,13 @@ private:
     std::vector<std::unique_ptr<Atom>> m_atoms;
     std::vector<std::unique_ptr<Bond>> m_bonds;
     std::vector<std::unique_ptr<Molecule>> m_molecules;
+
+    // Darwinian daemons (independent spatial agents)
+    std::vector<std::unique_ptr<Daemon>> m_daemons;
+    int m_nextDaemonId = 0;
+    int m_daemonSpawnedThisStep = 0;
+    int m_daemonSuccessThisStep = 0;
+    int m_daemonDeathsThisStep = 0;
 
     // Spatial acceleration
     SpatialGrid m_spatialGrid;

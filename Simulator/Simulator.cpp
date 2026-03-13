@@ -422,6 +422,12 @@ namespace Simulator {
 		cfgJson["A_form"] = config.A_form;
 		cfgJson["A_break"] = config.A_break;
 		cfgJson["activationFraction"] = config.activationFraction;
+		cfgJson["enableDaemons"] = config.enableDaemons;
+		cfgJson["enableStochasticBonds"] = config.enableStochasticBonds;
+		cfgJson["daemonSpawnRate"] = config.daemonSpawnRate;
+		cfgJson["daemonTimeout"] = config.daemonTimeout;
+		cfgJson["daemonMaxPopulation"] = config.daemonMaxPopulation;
+		cfgJson["daemonSpeed"] = config.daemonSpeed;
 		cfgJson["boundaryType"] = config.boundaryType;
 		cfgJson["rngSeed"] = config.rngSeed;
 		cfgJson["plotDelaySec"] = config.plotDelaySec;
@@ -489,6 +495,12 @@ namespace Simulator {
 			if (cfgJson.contains("A_form")) cfg.A_form = cfgJson["A_form"].get<double>();
 			if (cfgJson.contains("A_break")) cfg.A_break = cfgJson["A_break"].get<double>();
 			if (cfgJson.contains("activationFraction")) cfg.activationFraction = cfgJson["activationFraction"].get<double>();
+			if (cfgJson.contains("enableDaemons")) cfg.enableDaemons = cfgJson["enableDaemons"].get<bool>();
+			if (cfgJson.contains("enableStochasticBonds")) cfg.enableStochasticBonds = cfgJson["enableStochasticBonds"].get<bool>();
+			if (cfgJson.contains("daemonSpawnRate")) cfg.daemonSpawnRate = cfgJson["daemonSpawnRate"].get<double>();
+			if (cfgJson.contains("daemonTimeout")) cfg.daemonTimeout = cfgJson["daemonTimeout"].get<int>();
+			if (cfgJson.contains("daemonMaxPopulation")) cfg.daemonMaxPopulation = cfgJson["daemonMaxPopulation"].get<int>();
+			if (cfgJson.contains("daemonSpeed")) cfg.daemonSpeed = cfgJson["daemonSpeed"].get<double>();
 			if (cfgJson.contains("boundaryType")) cfg.boundaryType = cfgJson["boundaryType"].get<std::string>();
 			if (cfgJson.contains("rngSeed")) cfg.rngSeed = cfgJson["rngSeed"].get<unsigned int>();
 			if (cfgJson.contains("plotDelaySec")) cfg.plotDelaySec = cfgJson["plotDelaySec"].get<float>();

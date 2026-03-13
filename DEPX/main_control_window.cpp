@@ -282,6 +282,53 @@ void MainControlWindow::renderParameterControls() {
         }
 
         ImGui::Separator();
+        ImGui::Text("Darwinian Assembly");
+
+        ImGui::Checkbox("Enable Daemons##EnableDaemons", &m_enableDaemons);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            saveConfiguration();
+        }
+
+        ImGui::Checkbox("Enable Stochastic Bonds##EnableStochastic", &m_enableStochasticBonds);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            saveConfiguration();
+        }
+
+        if (m_enableDaemons) {
+            float spawnRate = static_cast<float>(m_daemonSpawnRate);
+            ImGui::SetNextItemWidth(100);
+            ImGui::InputFloat("Spawn Rate##DaemonSpawn", &spawnRate, 0.0f, 0.0f, "%.2f");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                if (spawnRate < 0.0f) spawnRate = 0.0f;
+                m_daemonSpawnRate = spawnRate;
+                saveConfiguration();
+            }
+
+            ImGui::SetNextItemWidth(100);
+            ImGui::InputInt("Timeout##DaemonTimeout", &m_daemonTimeout, 0, 0);
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                if (m_daemonTimeout < 1) m_daemonTimeout = 1;
+                saveConfiguration();
+            }
+
+            ImGui::SetNextItemWidth(100);
+            ImGui::InputInt("Max Pop##DaemonMaxPop", &m_daemonMaxPopulation, 0, 0);
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                if (m_daemonMaxPopulation < 1) m_daemonMaxPopulation = 1;
+                saveConfiguration();
+            }
+
+            float speed = static_cast<float>(m_daemonSpeed);
+            ImGui::SetNextItemWidth(100);
+            ImGui::InputFloat("Speed##DaemonSpeed", &speed, 0.0f, 0.0f, "%.1f");
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                if (speed < 0.1f) speed = 0.1f;
+                m_daemonSpeed = speed;
+                saveConfiguration();
+            }
+        }
+
+        ImGui::Separator();
         ImGui::Text("Max Steps");
         ImGui::SetNextItemWidth(120);
         ImGui::InputInt("##MaxSteps", &m_maxSteps, 0, 0);
@@ -369,6 +416,12 @@ void MainControlWindow::loadConfiguration() {
         m_A_form = config.A_form;
         m_A_break = config.A_break;
         m_activationFraction = config.activationFraction;
+        m_enableDaemons = config.enableDaemons;
+        m_enableStochasticBonds = config.enableStochasticBonds;
+        m_daemonSpawnRate = config.daemonSpawnRate;
+        m_daemonTimeout = config.daemonTimeout;
+        m_daemonMaxPopulation = config.daemonMaxPopulation;
+        m_daemonSpeed = config.daemonSpeed;
 
         // Load and apply theme
         ThemeManager::ThemeType theme = ThemeManager::Theme::getInstance().stringToTheme(config.uiTheme);
@@ -397,6 +450,12 @@ void MainControlWindow::saveConfiguration() {
         config.A_form = m_A_form;
         config.A_break = m_A_break;
         config.activationFraction = m_activationFraction;
+        config.enableDaemons = m_enableDaemons;
+        config.enableStochasticBonds = m_enableStochasticBonds;
+        config.daemonSpawnRate = m_daemonSpawnRate;
+        config.daemonTimeout = m_daemonTimeout;
+        config.daemonMaxPopulation = m_daemonMaxPopulation;
+        config.daemonSpeed = m_daemonSpeed;
 
         DataManager::SaveConfigParameters();
     }

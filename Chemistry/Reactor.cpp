@@ -65,26 +65,46 @@ void Reactor::RunTimestep(int step) {
     m_currentStep = step;
     m_formationEventsThisStep = 0;
     m_breakingEventsThisStep = 0;
+    m_daemonSpawnedThisStep = 0;
+    m_daemonSuccessThisStep = 0;
+    m_daemonDeathsThisStep = 0;
+
+    const auto& config = DataManager::GetConfigParameters();
 
     // 1. Move atoms (Brownian motion)
     MoveAtoms(m_dt);
 
-    // 2. Apply boundary conditions
+    // 2. Move daemons (if enabled)
+    if (config.enableDaemons) {
+        MoveDaemons(m_dt);
+        ApplyDaemonBoundaryConditions();
+    }
+
+    // 3. Apply boundary conditions for atoms
     ApplyBoundaryConditions();
 
-    // 3. Rebuild spatial grid
+    // 4. Rebuild spatial grid
     m_spatialGrid.Build(m_atoms);
 
-    // 4. Attempt bond breaking (before formation, so freed valence is available)
+    // 5. Attempt bond breaking (before formation, so freed valence is available)
     AttemptBondBreaking();
 
-    // 5. Attempt bond formation
-    AttemptBondFormation();
+    // 6. Attempt stochastic bond formation (if enabled)
+    if (config.enableStochasticBonds) {
+        AttemptBondFormation();
+    }
 
-    // 6. Update molecule tracking (union-find connected components)
+    // 7. Run Darwinian daemons (if enabled)
+    if (config.enableDaemons) {
+        RunDaemons();
+        SpawnNewDaemons();
+        CullDeadDaemons();
+    }
+
+    // 8. Update molecule tracking (union-find connected components)
     UpdateMolecules();
 
-    // 7. Collect statistics
+    // 9. Collect statistics
     CalculateStats();
 }
 
@@ -96,16 +116,155 @@ void Reactor::Cleanup() {
     // Clear atoms
     m_atoms.clear();
 
+    // Clear daemons
+    m_daemons.clear();
+
     m_initialized = false;
     m_currentStep = 0;
     m_nextBondId = 0;
     m_nextMoleculeId = 0;
+    m_nextDaemonId = 0;
     m_totalBondEnergy = 0.0;
     m_moleculeCount = 0;
     m_freeAtomCount = 0;
     m_avgMoleculeSize = 0.0;
     m_maxMoleculeSize = 0;
     m_moleculeCensus.clear();
+}
+
+// --- Daemon lifecycle ---
+
+void Reactor::MoveDaemons(double dt) {
+    const auto& config = DataManager::GetConfigParameters();
+    auto& rng = DataManager::GetGlobalRandomEngine();
+    std::normal_distribution<double> noise(0.0, 1.0);
+
+    double speedMul = config.daemonSpeed;
+    for (auto& daemon : m_daemons) {
+        if (daemon->GetState() == Daemon::State::DEAD) continue;
+
+        // Brownian motion with speed multiplier
+        double mass = daemon->GetMass();
+        double sigma = std::sqrt(ChemistryConfig::kB * m_temperature / mass) * speedMul;
+        double dampingFactor = 0.9;
+
+        Vec3 vel = daemon->GetVelocity() * dampingFactor;
+        vel.x += noise(rng) * sigma * 0.1;
+        vel.y += noise(rng) * sigma * 0.1;
+        vel.z += noise(rng) * sigma * 0.1;
+        daemon->SetVelocity(vel);
+        daemon->StepActivity(dt);
+    }
+}
+
+void Reactor::ApplyDaemonBoundaryConditions() {
+    for (auto& daemon : m_daemons) {
+        Vec3 pos = daemon->GetPosition();
+        Vec3 vel = daemon->GetVelocity();
+
+        // Reflective boundaries (same as atoms)
+        auto reflect = [](double& p, double& v, double lo, double hi) {
+            if (p < lo) { p = lo + (lo - p); v = std::abs(v); }
+            if (p > hi) { p = hi - (p - hi); v = -std::abs(v); }
+            p = (p < lo) ? lo : (p > hi ? hi : p);
+        };
+
+        reflect(pos.x, vel.x, 0.0, m_boxSize.x);
+        reflect(pos.y, vel.y, 0.0, m_boxSize.y);
+        reflect(pos.z, vel.z, 0.0, m_boxSize.z);
+
+        daemon->SetPosition(pos);
+        daemon->SetVelocity(vel);
+    }
+}
+
+void Reactor::RunDaemons() {
+    const auto& config = DataManager::GetConfigParameters();
+    double cutoff = config.interactionCutoff;
+    std::vector<std::unique_ptr<Daemon>> offspring;
+
+    for (auto& daemon : m_daemons) {
+        if (daemon->GetState() != Daemon::State::SEARCHING) continue;
+
+        Atom* atomA = nullptr;
+        Atom* atomB = nullptr;
+        if (daemon->TryAssemble(m_spatialGrid, m_atoms, cutoff, m_currentStep, atomA, atomB)) {
+            // Form bond between the two atoms
+            auto& chemConfig = ChemistryConfig::GetInstance();
+            double energy = chemConfig.GetBondEnergy(atomA->GetElement(), atomB->GetElement(), BondOrder::Single);
+            CreateBond(atomA, atomB, BondOrder::Single, m_currentStep);
+            m_formationEventsThisStep++;
+            m_daemonSuccessThisStep++;
+
+            daemon->RecordSuccess(m_currentStep);
+
+            // Reproduction: spawn offspring nearby (assisted production)
+            if (static_cast<int>(m_daemons.size() + offspring.size()) < config.daemonMaxPopulation) {
+                auto& rng = DataManager::GetGlobalRandomEngine();
+                auto child = daemon->SpawnOffspring(m_nextDaemonId++, m_currentStep, m_boxSize, rng);
+                offspring.push_back(std::move(child));
+            }
+        }
+    }
+
+    // Add offspring to the daemon population
+    for (auto& child : offspring) {
+        m_daemons.push_back(std::move(child));
+        m_daemonSpawnedThisStep++;
+    }
+}
+
+void Reactor::SpawnNewDaemons() {
+    const auto& config = DataManager::GetConfigParameters();
+    auto& rng = DataManager::GetGlobalRandomEngine();
+
+    // Spawn daemonSpawnRate new daemons per step (Poisson-like: use floor + fractional chance)
+    double rate = config.daemonSpawnRate;
+    int toSpawn = static_cast<int>(rate);
+    double fractional = rate - toSpawn;
+    std::uniform_real_distribution<double> prob(0.0, 1.0);
+    if (prob(rng) < fractional) toSpawn++;
+
+    // Respect population cap
+    int available = config.daemonMaxPopulation - static_cast<int>(m_daemons.size());
+    toSpawn = (toSpawn < available) ? toSpawn : ((available > 0) ? available : 0);
+
+    auto& recipeBook = RecipeBook::GetInstance();
+    if (recipeBook.GetTotalRecipeCount() == 0) return;
+
+    std::uniform_real_distribution<double> posDistX(0.0, m_boxSize.x);
+    std::uniform_real_distribution<double> posDistY(0.0, m_boxSize.y);
+    std::uniform_real_distribution<double> posDistZ(0.0, m_boxSize.z);
+
+    for (int i = 0; i < toSpawn; ++i) {
+        const Recipe& recipe = recipeBook.GetRandomRecipe(rng);
+        auto daemon = std::make_unique<Daemon>(m_nextDaemonId++, &recipe, m_currentStep, config.daemonTimeout);
+
+        // Random position in box
+        daemon->SetPosition(Vec3(posDistX(rng), posDistY(rng), posDistZ(rng)));
+
+        // Thermal velocity
+        double sigma = std::sqrt(ChemistryConfig::kB * m_temperature / daemon->GetMass());
+        std::normal_distribution<double> velDist(0.0, sigma);
+        daemon->SetVelocity(Vec3(velDist(rng), velDist(rng), velDist(rng)));
+
+        m_daemons.push_back(std::move(daemon));
+        m_daemonSpawnedThisStep++;
+    }
+}
+
+void Reactor::CullDeadDaemons() {
+    int deaths = 0;
+    auto it = std::remove_if(m_daemons.begin(), m_daemons.end(),
+        [&](const std::unique_ptr<Daemon>& d) {
+            if (d->GetState() == Daemon::State::DEAD || d->ShouldDie(m_currentStep)) {
+                deaths++;
+                return true;
+            }
+            return false;
+        });
+    m_daemons.erase(it, m_daemons.end());
+    m_daemonDeathsThisStep = deaths;
 }
 
 // --- Snapshot persistence ---
@@ -115,6 +274,7 @@ nlohmann::json Reactor::SaveSnapshot() const {
     snap["currentStep"] = m_currentStep;
     snap["nextBondId"] = m_nextBondId;
     snap["nextMoleculeId"] = m_nextMoleculeId;
+    snap["nextDaemonId"] = m_nextDaemonId;
 
     // Serialize atoms
     auto& atomsArr = snap["atoms"];
@@ -144,6 +304,13 @@ nlohmann::json Reactor::SaveSnapshot() const {
         bondsArr.push_back(b);
     }
 
+    // Serialize daemons
+    auto& daemonsArr = snap["daemons"];
+    daemonsArr = nlohmann::json::array();
+    for (const auto& daemon : m_daemons) {
+        daemonsArr.push_back(daemon->Save());
+    }
+
     return snap;
 }
 
@@ -167,6 +334,9 @@ bool Reactor::LoadSnapshot(const nlohmann::json& snapshot) {
     m_currentStep = snapshot["currentStep"].get<int>();
     m_nextBondId = snapshot["nextBondId"].get<int>();
     m_nextMoleculeId = snapshot["nextMoleculeId"].get<int>();
+    if (snapshot.contains("nextDaemonId")) {
+        m_nextDaemonId = snapshot["nextDaemonId"].get<int>();
+    }
 
     // Restore atoms
     for (const auto& atomData : snapshot["atoms"]) {
@@ -204,6 +374,47 @@ bool Reactor::LoadSnapshot(const nlohmann::json& snapshot) {
     m_ufParent.resize(m_atoms.size());
     m_ufRank.resize(m_atoms.size());
 
+    // Restore daemons
+    if (snapshot.contains("daemons") && snapshot["daemons"].is_array()) {
+        auto& recipeBook = RecipeBook::GetInstance();
+        for (const auto& dData : snapshot["daemons"]) {
+            std::string target = dData["targetFormula"].get<std::string>();
+            std::string compA = dData["componentA"].get<std::string>();
+            std::string compB = dData["componentB"].get<std::string>();
+            double energyGain = dData["energyGain"].get<double>();
+
+            // Find matching recipe in book
+            const Recipe* recipe = nullptr;
+            const auto& recipes = recipeBook.GetRecipesFor(target);
+            for (const auto& r : recipes) {
+                if (r.componentA == compA && r.componentB == compB) {
+                    recipe = &r;
+                    break;
+                }
+            }
+            if (!recipe) continue;  // Recipe no longer exists
+
+            int id = dData["id"].get<int>();
+            int creationStep = dData["creationStep"].get<int>();
+            int timeoutSteps = dData["timeoutSteps"].get<int>();
+
+            auto daemon = std::make_unique<Daemon>(id, recipe, creationStep, timeoutSteps);
+            daemon->SetPosition({ dData["px"].get<double>(),
+                                   dData["py"].get<double>(),
+                                   dData["pz"].get<double>() });
+            daemon->SetVelocity({ dData["vx"].get<double>(),
+                                   dData["vy"].get<double>(),
+                                   dData["vz"].get<double>() });
+
+            // Restore success tracking
+            int successCount = dData.value("successCount", 0);
+            int lastSuccessStep = dData.value("lastSuccessStep", creationStep);
+            for (int s = 0; s < successCount; ++s) daemon->RecordSuccess(lastSuccessStep);
+
+            m_daemons.push_back(std::move(daemon));
+        }
+    }
+
     // Rebuild molecules and stats from restored bonds
     UpdateMolecules();
     CalculateStats();
@@ -211,8 +422,9 @@ bool Reactor::LoadSnapshot(const nlohmann::json& snapshot) {
     m_initialized = true;
 
     Logger::Info("Reactor: Loaded snapshot at step " + std::to_string(m_currentStep)
-        + " with " + std::to_string(m_atoms.size()) + " atoms and "
-        + std::to_string(m_bonds.size()) + " bonds.");
+        + " with " + std::to_string(m_atoms.size()) + " atoms, "
+        + std::to_string(m_bonds.size()) + " bonds, and "
+        + std::to_string(m_daemons.size()) + " daemons.");
 
     return true;
 }

@@ -147,6 +147,39 @@ namespace {
                 ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
                 ImPlotMarker_Up);
 
+            // ===== DARWINIAN ASSEMBLY =====
+            RegisterTS("active_daemons", "Active Daemons", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    return reactor ? static_cast<float>(reactor->GetActiveDaemonCount()) : 0.0f;
+                },
+                ImVec4(0.8f, 0.2f, 0.8f, 1.0f),
+                ImPlotMarker_Circle);
+
+            RegisterTS("daemon_spawns", "Daemon Spawns/step", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    return reactor ? static_cast<float>(reactor->GetDaemonSpawnedThisStep()) : 0.0f;
+                },
+                ImVec4(0.4f, 0.8f, 0.4f, 1.0f),
+                ImPlotMarker_Up);
+
+            RegisterTS("daemon_successes", "Daemon Successes/step", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    return reactor ? static_cast<float>(reactor->GetDaemonSuccessThisStep()) : 0.0f;
+                },
+                ImVec4(0.2f, 0.6f, 0.9f, 1.0f),
+                ImPlotMarker_Diamond);
+
+            RegisterTS("daemon_deaths", "Daemon Deaths/step", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    return reactor ? static_cast<float>(reactor->GetDaemonDeathsThisStep()) : 0.0f;
+                },
+                ImVec4(0.9f, 0.3f, 0.3f, 1.0f),
+                ImPlotMarker_Cross);
+
             // ===== COMPLEXITY =====
             RegisterTS("avg_molecule_size", "Avg Molecule Size", "Atoms",
                 []() {
@@ -177,7 +210,7 @@ namespace {
                 def.windowName = "Energy Evolution";
                 def.plotTitle = "##EnergyEvolution";
                 def.seriesIds = { "total_bond_energy" };
-                def.legendLocation = ImPlotLocation_NorthWest;
+                def.legendLocation = ImPlotLocation_SouthEast;
                 def.legendOutside = true;
                 def.ticksEvery = 1000;
                 def.showControls = true;
@@ -190,7 +223,7 @@ namespace {
                 def.windowName = "Population Dynamics";
                 def.plotTitle = "##PopulationDynamics";
                 def.seriesIds = { "molecule_count", "free_atom_count" };
-                def.legendLocation = ImPlotLocation_NorthWest;
+                def.legendLocation = ImPlotLocation_SouthEast;
                 def.legendOutside = true;
                 def.ticksEvery = 1000;
                 def.showControls = true;
@@ -203,7 +236,7 @@ namespace {
                 def.windowName = "Species Tracking";
                 def.plotTitle = "##SpeciesTracking";
                 def.seriesIds = { "free_C_count", "free_H_count", "free_O_count" };
-                def.legendLocation = ImPlotLocation_NorthWest;
+                def.legendLocation = ImPlotLocation_SouthEast;
                 def.legendOutside = true;
                 def.ticksEvery = 1000;
                 def.showControls = true;
@@ -216,7 +249,7 @@ namespace {
                 def.windowName = "Bond Kinetics";
                 def.plotTitle = "##BondKinetics";
                 def.seriesIds = { "bond_count", "formation_events", "breaking_events" };
-                def.legendLocation = ImPlotLocation_NorthWest;
+                def.legendLocation = ImPlotLocation_SouthEast;
                 def.legendOutside = true;
                 def.ticksEvery = 1000;
                 def.showControls = true;
@@ -229,7 +262,20 @@ namespace {
                 def.windowName = "Known Molecules";
                 def.plotTitle = "##KnownMolecules";
                 def.seriesIds = { "H2_count", "H2O_count", "CH4_count", "CO2_count" };
-                def.legendLocation = ImPlotLocation_NorthWest;
+                def.legendLocation = ImPlotLocation_SouthEast;
+                def.legendOutside = true;
+                def.ticksEvery = 1000;
+                def.showControls = true;
+                registry.RegisterPlotWindow(def);
+            }
+
+            // Darwinian Assembly
+            {
+                DataManager::PlotWindowDefinition def;
+                def.windowName = "Darwinian Assembly";
+                def.plotTitle = "##DarwinianAssembly";
+                def.seriesIds = { "active_daemons", "daemon_spawns", "daemon_successes", "daemon_deaths" };
+                def.legendLocation = ImPlotLocation_SouthEast;
                 def.legendOutside = true;
                 def.ticksEvery = 1000;
                 def.showControls = true;
@@ -242,7 +288,7 @@ namespace {
                 def.windowName = "Complexity";
                 def.plotTitle = "##Complexity";
                 def.seriesIds = { "avg_molecule_size", "max_molecule_size" };
-                def.legendLocation = ImPlotLocation_NorthWest;
+                def.legendLocation = ImPlotLocation_SouthEast;
                 def.legendOutside = true;
                 def.ticksEvery = 1000;
                 def.showControls = true;
