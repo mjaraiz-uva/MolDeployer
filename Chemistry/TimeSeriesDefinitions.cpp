@@ -147,6 +147,44 @@ namespace {
                 ImVec4(0.7f, 0.7f, 0.7f, 1.0f),
                 ImPlotMarker_Up);
 
+            // ===== HYDROCARBON CHAINS =====
+            RegisterTS("C2H6_count", "C2H6", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    return reactor ? static_cast<float>(reactor->GetMoleculeCountByFormula("C2H6")) : 0.0f;
+                },
+                ImVec4(0.9f, 0.6f, 0.2f, 1.0f),
+                ImPlotMarker_Circle);
+
+            RegisterTS("C3H8_count", "C3H8", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    return reactor ? static_cast<float>(reactor->GetMoleculeCountByFormula("C3H8")) : 0.0f;
+                },
+                ImVec4(0.2f, 0.9f, 0.6f, 1.0f),
+                ImPlotMarker_Square);
+
+            RegisterTS("C4plus_count", "C4+ chains", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    if (!reactor) return 0.0f;
+                    // Count all molecules with 4+ carbons
+                    int count = 0;
+                    const auto& census = reactor->GetMoleculeCensus();
+                    for (const auto& [formula, n] : census) {
+                        // Check if formula starts with "C" followed by a digit >= 4
+                        if (formula.size() >= 2 && formula[0] == 'C' && formula[1] >= '4' && formula[1] <= '9') {
+                            count += n;
+                        } else if (formula.size() >= 3 && formula[0] == 'C' && formula[1] >= '1' && formula[1] <= '9' && formula[2] >= '0' && formula[2] <= '9') {
+                            // C10+
+                            count += n;
+                        }
+                    }
+                    return static_cast<float>(count);
+                },
+                ImVec4(0.9f, 0.2f, 0.5f, 1.0f),
+                ImPlotMarker_Diamond);
+
             // ===== DARWINIAN ASSEMBLY =====
             RegisterTS("searching_daemons", "Searching Daemons", "Count",
                 []() {
@@ -187,6 +225,14 @@ namespace {
                 },
                 ImVec4(0.9f, 0.3f, 0.3f, 1.0f),
                 ImPlotMarker_Cross);
+
+            RegisterTS("rearrangements", "Rearrangements/step", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    return reactor ? static_cast<float>(reactor->GetRearrangementsThisStep()) : 0.0f;
+                },
+                ImVec4(0.9f, 0.9f, 0.2f, 1.0f),
+                ImPlotMarker_Asterisk);
 
             // ===== COMPLEXITY =====
             RegisterTS("avg_molecule_size", "Avg Molecule Size", "Atoms",
@@ -277,12 +323,38 @@ namespace {
                 registry.RegisterPlotWindow(def);
             }
 
-            // Darwinian Assembly
+            // Hydrocarbon Chains
             {
                 DataManager::PlotWindowDefinition def;
-                def.windowName = "Darwinian Assembly";
-                def.plotTitle = "##DarwinianAssembly";
-                def.seriesIds = { "searching_daemons", "holding_daemons", "daemon_spawns", "daemon_successes", "daemon_deaths" };
+                def.windowName = "Hydrocarbon Chains";
+                def.plotTitle = "##HydrocarbonChains";
+                def.seriesIds = { "CH4_count", "C2H6_count", "C3H8_count", "C4plus_count" };
+                def.legendLocation = ImPlotLocation_SouthEast;
+                def.legendOutside = true;
+                def.ticksEvery = 1000;
+                def.showControls = true;
+                registry.RegisterPlotWindow(def);
+            }
+
+            // Daemon Population
+            {
+                DataManager::PlotWindowDefinition def;
+                def.windowName = "Daemon Population";
+                def.plotTitle = "##DaemonPopulation";
+                def.seriesIds = { "searching_daemons", "holding_daemons" };
+                def.legendLocation = ImPlotLocation_SouthEast;
+                def.legendOutside = true;
+                def.ticksEvery = 1000;
+                def.showControls = true;
+                registry.RegisterPlotWindow(def);
+            }
+
+            // Daemon Events
+            {
+                DataManager::PlotWindowDefinition def;
+                def.windowName = "Daemon Events";
+                def.plotTitle = "##DaemonEvents";
+                def.seriesIds = { "daemon_spawns", "daemon_successes", "daemon_deaths", "rearrangements" };
                 def.legendLocation = ImPlotLocation_SouthEast;
                 def.legendOutside = true;
                 def.ticksEvery = 1000;

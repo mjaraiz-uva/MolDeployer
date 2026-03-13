@@ -432,6 +432,7 @@ namespace Simulator {
 		cfgJson["enableDaemons"] = config.enableDaemons;
 		cfgJson["enableStochasticBonds"] = config.enableStochasticBonds;
 		cfgJson["daemonTimeout"] = config.daemonTimeout;
+		cfgJson["atomResupplyInterval"] = config.atomResupplyInterval;
 		cfgJson["boundaryType"] = config.boundaryType;
 		cfgJson["rngSeed"] = config.rngSeed;
 		cfgJson["plotDelaySec"] = config.plotDelaySec;
@@ -502,6 +503,7 @@ namespace Simulator {
 			if (cfgJson.contains("enableDaemons")) cfg.enableDaemons = cfgJson["enableDaemons"].get<bool>();
 			if (cfgJson.contains("enableStochasticBonds")) cfg.enableStochasticBonds = cfgJson["enableStochasticBonds"].get<bool>();
 			if (cfgJson.contains("daemonTimeout")) cfg.daemonTimeout = cfgJson["daemonTimeout"].get<int>();
+			if (cfgJson.contains("atomResupplyInterval")) cfg.atomResupplyInterval = cfgJson["atomResupplyInterval"].get<int>();
 			if (cfgJson.contains("boundaryType")) cfg.boundaryType = cfgJson["boundaryType"].get<std::string>();
 			if (cfgJson.contains("rngSeed")) cfg.rngSeed = cfgJson["rngSeed"].get<unsigned int>();
 			if (cfgJson.contains("plotDelaySec")) cfg.plotDelaySec = cfgJson["plotDelaySec"].get<float>();

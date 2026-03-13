@@ -57,6 +57,7 @@ namespace DataManager {
 		bool enableDaemons = false;                 // Enable Darwinian assembly daemons
 		bool enableStochasticBonds = true;          // Keep existing random bond formation
 		int daemonTimeout = 500;                    // Steps without success before timeout
+		int atomResupplyInterval = 0;               // Inject fresh atoms every N steps (0=disabled)
 
 		// Boundary conditions: "reflective" or "periodic"
 		std::string boundaryType = "reflective";

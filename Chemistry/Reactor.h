@@ -49,6 +49,7 @@ public:
     int GetDaemonSpawnedThisStep() const { return m_daemonSpawnedThisStep; }
     int GetDaemonSuccessThisStep() const { return m_daemonSuccessThisStep; }
     int GetDaemonDeathsThisStep() const { return m_daemonDeathsThisStep; }
+    int GetRearrangementsThisStep() const { return m_rearrangementsThisStep; }
 
     int GetFreeAtomCountByElement(Element e) const;
     int GetMoleculeCountByFormula(const std::string& formula) const;
@@ -65,6 +66,7 @@ private:
     void ApplyBoundaryConditions();
     void AttemptBondBreaking();
     void AttemptBondFormation();
+    void ResupplyAtoms();
     void UpdateMolecules();
     void CalculateStats();
 
@@ -75,6 +77,10 @@ private:
     void HandleHoldingDaemon(Atom* atom, DaemonState* ds);
     void ReassignDaemon(Atom* atom);
     void SpawnOffspringDaemon(Atom* neighbor, const Recipe* parentRecipe);
+
+    // Thermodynamic rearrangement: break weakest bond on a saturated atom
+    // to make room for a new, stronger bond. Returns the freed atom, or nullptr.
+    Atom* MakeRoomForBond(Atom* anchor, double newBondEnergy);
 
     // --- Bond management helpers ---
 
@@ -100,6 +106,7 @@ private:
     int m_daemonSpawnedThisStep = 0;
     int m_daemonSuccessThisStep = 0;
     int m_daemonDeathsThisStep = 0;
+    int m_rearrangementsThisStep = 0;
 
     // Spatial acceleration
     SpatialGrid m_spatialGrid;
@@ -108,6 +115,9 @@ private:
     Vec3 m_boxSize;
     double m_temperature = 1000.0;
     double m_dt = 1.0;
+    int m_initialCarbon = 0;
+    int m_initialHydrogen = 0;
+    int m_initialOxygen = 0;
     int m_nextBondId = 0;
     int m_nextMoleculeId = 0;
 

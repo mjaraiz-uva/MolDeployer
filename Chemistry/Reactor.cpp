@@ -39,6 +39,10 @@ bool Reactor::Initialize() {
         }
     };
 
+    m_initialCarbon = config.numCarbon;
+    m_initialHydrogen = config.numHydrogen;
+    m_initialOxygen = config.numOxygen;
+
     createAtoms(Element::C, config.numCarbon);
     createAtoms(Element::H, config.numHydrogen);
     createAtoms(Element::O, config.numOxygen);
@@ -69,6 +73,7 @@ void Reactor::RunTimestep(int step) {
     m_daemonSpawnedThisStep = 0;
     m_daemonSuccessThisStep = 0;
     m_daemonDeathsThisStep = 0;
+    m_rearrangementsThisStep = 0;
 
     const auto& config = DataManager::GetConfigParameters();
 
@@ -97,7 +102,12 @@ void Reactor::RunTimestep(int step) {
     // 7. Update molecule tracking (union-find connected components)
     UpdateMolecules();
 
-    // 8. Collect statistics
+    // 8. Resupply fresh atoms if enabled
+    if (config.atomResupplyInterval > 0 && step > 0 && step % config.atomResupplyInterval == 0) {
+        ResupplyAtoms();
+    }
+
+    // 9. Collect statistics
     CalculateStats();
 }
 
@@ -154,6 +164,52 @@ void Reactor::RunAtomDaemons() {
     }
 }
 
+Atom* Reactor::MakeRoomForBond(Atom* anchor, double /*newBondEnergy*/) {
+    if (!anchor) return nullptr;
+
+    // Thermodynamic rearrangement over sidereal time: break the weakest bond
+    // in this entity to free valence for a new bond. Natural selection via
+    // stochastic breaking and daemon timeout eliminates unfavorable products.
+    Molecule* mol = anchor->GetMolecule();
+    std::vector<Atom*> candidates;
+    if (mol) {
+        candidates = mol->GetAtoms();
+    } else {
+        candidates.push_back(anchor);
+    }
+
+    Bond* weakest = nullptr;
+    Atom* bestAtom = nullptr;
+    for (Atom* a : candidates) {
+        for (Bond* b : a->GetBonds()) {
+            if (b->markedForRemoval) continue;
+            if (!weakest || b->energy < weakest->energy) {
+                weakest = b;
+                bestAtom = a;
+            }
+        }
+    }
+
+    if (!weakest || !bestAtom) return nullptr;
+
+    // Clear daemon holder if this bond was held by a daemon
+    if (weakest->daemonHolder) {
+        DaemonState* holderDaemon = weakest->daemonHolder->GetDaemon();
+        if (holderDaemon && holderDaemon->heldBond == weakest) {
+            holderDaemon->heldBond = nullptr;
+        }
+        weakest->daemonHolder = nullptr;
+    }
+
+    // Break the weak bond to make room
+    RemoveBond(weakest);
+    m_breakingEventsThisStep++;
+    m_rearrangementsThisStep++;
+
+    // Return the atom that now has free valence
+    return FindBondableAtomInEntity(bestAtom);
+}
+
 void Reactor::HandleSearchingDaemon(Atom* atom, size_t atomIndex, DaemonState* ds) {
     // Timeout while searching → reassign with new random recipe
     if (ds->HasTimedOut(m_currentStep)) {
@@ -191,8 +247,16 @@ void Reactor::HandleSearchingDaemon(Atom* atom, size_t atomIndex, DaemonState* d
         if (neighborFormula != targetComp) continue;
 
         // Found a match! Try to bond.
+        // First try free-valence path (fast, no rearrangement needed)
         Atom* bondableA = FindBondableAtomInEntity(atom);
         Atom* bondableB = FindBondableAtomInEntity(neighbor);
+
+        // Thermodynamic rearrangement: if either side is saturated,
+        // try breaking the weakest bond to make room for the new (stronger) one.
+        double newBondEnergy = ds->recipe->energyGain;
+        if (!bondableA) bondableA = MakeRoomForBond(atom, newBondEnergy);
+        if (!bondableB) bondableB = MakeRoomForBond(neighbor, newBondEnergy);
+
         if (!bondableA || !bondableB) continue;
         if (bondableA->GetBondTo(bondableB)) continue;  // already bonded
 
@@ -590,6 +654,60 @@ void Reactor::AttemptBondFormation() {
             CreateBond(a1, a2, BondOrder::Single, m_currentStep);
             m_formationEventsThisStep++;
         }
+    }
+}
+
+void Reactor::ResupplyAtoms() {
+    // Inject fresh free atoms to replace those consumed into molecules.
+    // Brings free atom counts back up to 50% of initial counts.
+    auto& rng = DataManager::GetGlobalRandomEngine();
+    const auto& config = DataManager::GetConfigParameters();
+    int nextId = static_cast<int>(m_atoms.size());
+
+    auto countFree = [&](Element e) {
+        int count = 0;
+        for (const auto& a : m_atoms) {
+            if (a->GetElement() == e && a->IsFree()) count++;
+        }
+        return count;
+    };
+
+    auto resupply = [&](Element e, int initial) {
+        int target = initial / 2;  // Replenish up to 50% of initial
+        int free = countFree(e);
+        int toAdd = target - free;
+        if (toAdd <= 0) return 0;
+
+        for (int i = 0; i < toAdd; ++i) {
+            auto atom = ParticleFactory::CreateAtom(nextId++, e, m_boxSize, m_temperature, rng);
+            if (config.enableDaemons) {
+                auto& recipeBook = RecipeBook::GetInstance();
+                auto daemon = std::make_unique<DaemonState>();
+                daemon->recipe = &recipeBook.GetRandomRecipe(rng);
+                daemon->assignedStep = m_currentStep;
+                daemon->timeoutSteps = config.daemonTimeout;
+                atom->SetDaemon(std::move(daemon));
+            }
+            m_atoms.push_back(std::move(atom));
+        }
+        return toAdd;
+    };
+
+    int addedC = resupply(Element::C, m_initialCarbon);
+    int addedH = resupply(Element::H, m_initialHydrogen);
+    int addedO = resupply(Element::O, m_initialOxygen);
+
+    if (addedC + addedH + addedO > 0) {
+        // Resize union-find arrays
+        m_ufParent.resize(m_atoms.size());
+        m_ufRank.resize(m_atoms.size());
+
+        // Rebuild spatial grid with new atoms
+        m_spatialGrid.Build(m_atoms);
+
+        Logger::Info("Reactor: Resupplied +" + std::to_string(addedC) + "C +"
+            + std::to_string(addedH) + "H +" + std::to_string(addedO) + "O"
+            + " (total atoms: " + std::to_string(m_atoms.size()) + ")");
     }
 }
 

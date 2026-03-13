@@ -62,6 +62,7 @@ private:
     bool m_enableDaemons = false;
     bool m_enableStochasticBonds = true;
     int m_daemonTimeout = 500;
+    int m_atomResupplyInterval = 0;
 
     bool m_showImGuiDemo = false;
     bool m_showImPlotDemo = false;

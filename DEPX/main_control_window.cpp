@@ -303,6 +303,16 @@ void MainControlWindow::renderParameterControls() {
             }
         }
 
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputInt("Resupply##AtomResupply", &m_atomResupplyInterval, 0, 0);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            if (m_atomResupplyInterval < 0) m_atomResupplyInterval = 0;
+            saveConfiguration();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Inject fresh atoms every N steps (0=disabled)");
+        }
+
         ImGui::Separator();
         ImGui::Text("Max Steps");
         ImGui::SetNextItemWidth(120);
@@ -394,6 +404,7 @@ void MainControlWindow::loadConfiguration() {
         m_enableDaemons = config.enableDaemons;
         m_enableStochasticBonds = config.enableStochasticBonds;
         m_daemonTimeout = config.daemonTimeout;
+        m_atomResupplyInterval = config.atomResupplyInterval;
 
         // Load and apply theme
         ThemeManager::ThemeType theme = ThemeManager::Theme::getInstance().stringToTheme(config.uiTheme);
@@ -425,6 +436,7 @@ void MainControlWindow::saveConfiguration() {
         config.enableDaemons = m_enableDaemons;
         config.enableStochasticBonds = m_enableStochasticBonds;
         config.daemonTimeout = m_daemonTimeout;
+        config.atomResupplyInterval = m_atomResupplyInterval;
 
         DataManager::SaveConfigParameters();
     }

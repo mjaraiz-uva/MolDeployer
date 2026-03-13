@@ -190,6 +190,7 @@ namespace DataManager {
 				LoadField(configJson, "enableDaemons", g_config_parameters.enableDaemons);
 				LoadField(configJson, "enableStochasticBonds", g_config_parameters.enableStochasticBonds);
 				LoadField(configJson, "daemonTimeout", g_config_parameters.daemonTimeout);
+				LoadField(configJson, "atomResupplyInterval", g_config_parameters.atomResupplyInterval);
 
 				// Boundary
 				LoadField(configJson, "boundaryType", g_config_parameters.boundaryType);
@@ -281,6 +282,7 @@ namespace DataManager {
 		configJson["enableDaemons"] = g_config_parameters.enableDaemons;
 		configJson["enableStochasticBonds"] = g_config_parameters.enableStochasticBonds;
 		configJson["daemonTimeout"] = g_config_parameters.daemonTimeout;
+		configJson["atomResupplyInterval"] = g_config_parameters.atomResupplyInterval;
 		configJson["boundaryType"] = g_config_parameters.boundaryType;
 		configJson["rngSeed"] = g_config_parameters.rngSeed;
 		configJson["displayPosX"] = g_config_parameters.displayPosX;
