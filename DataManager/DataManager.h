@@ -35,17 +35,22 @@ namespace DataManager {
 		// Simulation control
 		int maxSteps = 100000;            // Total simulation timesteps
 		double dt = 1.0;                  // Timestep size
-		double temperature = 1000.0;      // Temperature in Kelvin
+		double temperature = 288.0;       // Temperature in Kelvin (Earth surface)
 
 		// Simulation box dimensions
 		double boxSizeX = 100.0;
 		double boxSizeY = 100.0;
 		double boxSizeZ = 100.0;
 
-		// Atom counts
-		int numCarbon = 100;
+		// Atom counts (budget includes atoms consumed by initial molecules)
+		int numCarbon = 20;
 		int numHydrogen = 400;
-		int numOxygen = 50;
+		int numOxygen = 640;
+
+		// Initial molecules (formed at startup from atom pool)
+		int initialH2O = 200;             // 200 O + 400 H
+		int initialCO2 = 20;              // 20 C + 40 O
+		int initialO2 = 200;              // 400 O
 
 		// Interaction and kinetic parameters
 		double interactionCutoff = 3.0;       // Cutoff radius for neighbor detection
@@ -54,10 +59,14 @@ namespace DataManager {
 		double activationFraction = 0.1;      // E_activation = activationFraction * E_bond
 
 		// Darwinian daemon parameters (riding daemons — every atom has one)
-		bool enableDaemons = false;                 // Enable Darwinian assembly daemons
+		bool enableDaemons = true;                  // Enable Darwinian assembly daemons
 		bool enableStochasticBonds = true;          // Keep existing random bond formation
 		int daemonTimeout = 500;                    // Steps without success before timeout
 		int atomResupplyInterval = 0;               // Inject fresh atoms every N steps (0=disabled)
+
+		// Radiation parameters (ionizing radiation on unshielded planet surface)
+		double radiationFlux = 0.0003;        // Photon flux intensity (pre-ozone Earth UV)
+		double radiationMaxEnergy = 600.0;    // Max photon energy kJ/mol (~6.2 eV, 200nm UV)
 
 		// Boundary conditions: "reflective" or "periodic"
 		std::string boundaryType = "reflective";

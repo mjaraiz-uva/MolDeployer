@@ -26,6 +26,8 @@ bool Reactor::Initialize() {
     chemConfig.A_form = config.A_form;
     chemConfig.A_break = config.A_break;
     chemConfig.activationFraction = config.activationFraction;
+    chemConfig.radiationFlux = config.radiationFlux;
+    chemConfig.radiationMaxEnergy = config.radiationMaxEnergy;
 
     m_spatialGrid.Configure(m_boxSize, config.interactionCutoff);
 
@@ -47,7 +49,7 @@ bool Reactor::Initialize() {
     createAtoms(Element::H, config.numHydrogen);
     createAtoms(Element::O, config.numOxygen);
 
-    Logger::Info("Reactor: Initialized with " + std::to_string(m_atoms.size()) + " atoms ("
+    Logger::Info("Reactor: Created " + std::to_string(m_atoms.size()) + " atoms ("
         + std::to_string(config.numCarbon) + "C + "
         + std::to_string(config.numHydrogen) + "H + "
         + std::to_string(config.numOxygen) + "O) in box "
@@ -56,10 +58,16 @@ bool Reactor::Initialize() {
     m_ufParent.resize(m_atoms.size());
     m_ufRank.resize(m_atoms.size());
 
+    // Pre-form initial molecules from the atom pool
+    PreformInitialMolecules(config);
+
     // Assign riding daemons to all atoms if enabled
     if (config.enableDaemons) {
         AssignInitialDaemons();
     }
+
+    // Build initial molecule tracking
+    UpdateMolecules();
 
     m_initialized = true;
     m_currentStep = 0;
@@ -70,6 +78,7 @@ void Reactor::RunTimestep(int step) {
     m_currentStep = step;
     m_formationEventsThisStep = 0;
     m_breakingEventsThisStep = 0;
+    m_radiationBreakingThisStep = 0;
     m_daemonSpawnedThisStep = 0;
     m_daemonSuccessThisStep = 0;
     m_daemonDeathsThisStep = 0;
@@ -444,6 +453,8 @@ bool Reactor::LoadSnapshot(const nlohmann::json& snapshot) {
     chemConfig.A_form = config.A_form;
     chemConfig.A_break = config.A_break;
     chemConfig.activationFraction = config.activationFraction;
+    chemConfig.radiationFlux = config.radiationFlux;
+    chemConfig.radiationMaxEnergy = config.radiationMaxEnergy;
 
     m_spatialGrid.Configure(m_boxSize, config.interactionCutoff);
 
@@ -591,17 +602,82 @@ void Reactor::ApplyBoundaryConditions() {
     }
 }
 
+void Reactor::PreformInitialMolecules(const DataManager::ConfigParameters& config) {
+    // Build index of free atoms by element
+    std::vector<Atom*> freeC, freeH, freeO;
+    for (auto& atom : m_atoms) {
+        if (atom->GetFreeValence() == Chemistry::MaxValence(atom->GetElement())) {
+            switch (atom->GetElement()) {
+                case Element::C: freeC.push_back(atom.get()); break;
+                case Element::H: freeH.push_back(atom.get()); break;
+                case Element::O: freeO.push_back(atom.get()); break;
+            }
+        }
+    }
+
+    int formedH2O = 0, formedCO2 = 0, formedO2 = 0;
+
+    // Form H2O: O-H + O-H (1 O + 2 H, two single bonds)
+    for (int i = 0; i < config.initialH2O && !freeO.empty() && freeH.size() >= 2; ++i) {
+        Atom* o = freeO.back(); freeO.pop_back();
+        Atom* h1 = freeH.back(); freeH.pop_back();
+        Atom* h2 = freeH.back(); freeH.pop_back();
+        CreateBond(o, h1, BondOrder::Single, 0);
+        CreateBond(o, h2, BondOrder::Single, 0);
+        formedH2O++;
+    }
+
+    // Form CO2: O=C=O (1 C + 2 O, two double bonds)
+    for (int i = 0; i < config.initialCO2 && !freeC.empty() && freeO.size() >= 2; ++i) {
+        Atom* c = freeC.back(); freeC.pop_back();
+        Atom* o1 = freeO.back(); freeO.pop_back();
+        Atom* o2 = freeO.back(); freeO.pop_back();
+        CreateBond(c, o1, BondOrder::Double, 0);
+        CreateBond(c, o2, BondOrder::Double, 0);
+        formedCO2++;
+    }
+
+    // Form O2: O=O (2 O, one double bond)
+    for (int i = 0; i < config.initialO2 && freeO.size() >= 2; ++i) {
+        Atom* o1 = freeO.back(); freeO.pop_back();
+        Atom* o2 = freeO.back(); freeO.pop_back();
+        CreateBond(o1, o2, BondOrder::Double, 0);
+        formedO2++;
+    }
+
+    if (formedH2O + formedCO2 + formedO2 > 0) {
+        Logger::Info("Reactor: Pre-formed initial molecules: "
+            + std::to_string(formedH2O) + " H2O, "
+            + std::to_string(formedCO2) + " CO2, "
+            + std::to_string(formedO2) + " O2");
+        Logger::Info("Reactor: Remaining free atoms: "
+            + std::to_string(freeC.size()) + "C + "
+            + std::to_string(freeH.size()) + "H + "
+            + std::to_string(freeO.size()) + "O");
+    }
+}
+
 void Reactor::AttemptBondBreaking() {
     auto& rng = DataManager::GetGlobalRandomEngine();
     auto& chemConfig = ChemistryConfig::GetInstance();
     std::uniform_real_distribution<double> uniform01(0.0, 1.0);
 
-    // Mark bonds for removal
+    // Mark bonds for removal (thermal + radiation channels)
     for (auto& bond : m_bonds) {
-        double P_break = chemConfig.GetBreakingProbability(bond->energy, m_temperature);
+        double P_thermal = chemConfig.GetBreakingProbability(bond->energy, m_temperature);
+        double P_radiation = chemConfig.GetRadiationBreakingProbability(bond->energy);
+
+        // Combined probability: P = 1 - (1 - P_thermal)(1 - P_radiation)
+        double P_survive = (1.0 - P_thermal) * (1.0 - P_radiation);
+        double P_break = 1.0 - P_survive;
+
         if (uniform01(rng) < P_break) {
             bond->markedForRemoval = true;
             m_breakingEventsThisStep++;
+            // Attribute to radiation if radiation roll would have broken it
+            if (P_radiation > 0.0 && uniform01(rng) < P_radiation / P_break) {
+                m_radiationBreakingThisStep++;
+            }
         }
     }
 

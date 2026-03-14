@@ -49,6 +49,9 @@ private:
     int m_numCarbon = 100;
     int m_numHydrogen = 400;
     int m_numOxygen = 50;
+    int m_initialH2O = 0;
+    int m_initialCO2 = 0;
+    int m_initialO2 = 0;
     double m_boxSizeX = 100.0;
     double m_boxSizeY = 100.0;
     double m_boxSizeZ = 100.0;
@@ -57,6 +60,10 @@ private:
     double m_A_form = 1.0;
     double m_A_break = 1.0e-3;
     double m_activationFraction = 0.1;
+
+    // Radiation parameters
+    double m_radiationFlux = 0.0;
+    double m_radiationMaxEnergy = 1200.0;
 
     // Darwinian daemon parameters (riding daemons)
     bool m_enableDaemons = false;

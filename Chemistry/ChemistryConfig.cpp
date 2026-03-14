@@ -77,4 +77,20 @@ double ChemistryConfig::GetBreakingProbability(double bondEnergy, double tempera
     return std::min(1.0, prob);
 }
 
+double ChemistryConfig::GetRadiationBreakingProbability(double bondEnergy) const {
+    if (radiationFlux <= 0.0) return 0.0;
+    if (bondEnergy <= 0.0) return 1.0;
+    if (bondEnergy >= radiationMaxEnergy) return 0.0;  // Photons too weak to break this bond
+
+    // Cross-section model: linear ramp from 0 at threshold to max at low bond energies.
+    // Bonds much weaker than the max photon energy are easier to break because
+    // more of the radiation spectrum can contribute.
+    // sigma ∝ (E_max - E_bond) / E_max  →  ranges from 0 to 1
+    double sigma = (radiationMaxEnergy - bondEnergy) / radiationMaxEnergy;
+
+    // P_rad = flux * sigma (per step)
+    double prob = radiationFlux * sigma;
+    return std::min(1.0, prob);
+}
+
 } // namespace Chemistry

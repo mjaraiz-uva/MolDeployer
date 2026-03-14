@@ -13,6 +13,7 @@
 #include "SpatialGrid.h"
 #include "ChemistryConfig.h"
 #include "Daemon.h"
+#include "../DataManager/DataManager.h"
 
 namespace Chemistry {
 
@@ -41,6 +42,7 @@ public:
     int GetMaxMoleculeSize() const { return m_maxMoleculeSize; }
     int GetFormationEventsThisStep() const { return m_formationEventsThisStep; }
     int GetBreakingEventsThisStep() const { return m_breakingEventsThisStep; }
+    int GetRadiationBreakingEventsThisStep() const { return m_radiationBreakingThisStep; }
 
     // Daemon statistics (riding daemons)
     int GetActiveDaemonCount() const;
@@ -66,6 +68,7 @@ private:
     void ApplyBoundaryConditions();
     void AttemptBondBreaking();
     void AttemptBondFormation();
+    void PreformInitialMolecules(const DataManager::ConfigParameters& config);
     void ResupplyAtoms();
     void UpdateMolecules();
     void CalculateStats();
@@ -129,6 +132,7 @@ private:
     int m_maxMoleculeSize = 0;
     int m_formationEventsThisStep = 0;
     int m_breakingEventsThisStep = 0;
+    int m_radiationBreakingThisStep = 0;
     std::map<std::string, int> m_moleculeCensus;
 
     // Union-find arrays

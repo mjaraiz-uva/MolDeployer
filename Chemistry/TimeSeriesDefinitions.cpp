@@ -114,6 +114,14 @@ namespace {
                 ImVec4(0.9f, 0.3f, 0.3f, 1.0f),
                 ImPlotMarker_Down);
 
+            RegisterTS("radiation_breaking_events", "Radiation breaks/step", "Count",
+                []() {
+                    auto reactor = GetReactorSafe();
+                    return reactor ? static_cast<float>(reactor->GetRadiationBreakingEventsThisStep()) : 0.0f;
+                },
+                ImVec4(1.0f, 0.8f, 0.0f, 1.0f),
+                ImPlotMarker_Cross);
+
             // ===== KNOWN MOLECULES =====
             RegisterTS("H2_count", "H2", "Count",
                 []() {
@@ -302,7 +310,7 @@ namespace {
                 DataManager::PlotWindowDefinition def;
                 def.windowName = "Bond Kinetics";
                 def.plotTitle = "##BondKinetics";
-                def.seriesIds = { "bond_count", "formation_events", "breaking_events" };
+                def.seriesIds = { "bond_count", "formation_events", "breaking_events", "radiation_breaking_events" };
                 def.legendLocation = ImPlotLocation_SouthEast;
                 def.legendOutside = true;
                 def.ticksEvery = 1000;

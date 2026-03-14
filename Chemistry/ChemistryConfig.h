@@ -68,10 +68,20 @@ public:
     // Breaking probability: P = A_break * exp(-E_bond / (kB * T))
     double GetBreakingProbability(double bondEnergy, double temperature) const;
 
+    // Radiation-driven bond breaking probability per step.
+    // Models photodissociation: photons with E >= bondEnergy can break the bond.
+    // P_rad = radiationFlux * cross_section, where cross_section depends on
+    // how far below the max photon energy the bond energy is.
+    double GetRadiationBreakingProbability(double bondEnergy) const;
+
     // Kinetic parameters (settable from config)
     double A_form = 1.0;              // Pre-exponential factor for formation
     double A_break = 1.0e-3;          // Pre-exponential factor for breaking
     double activationFraction = 0.1;  // E_activation = activationFraction * E_bond
+
+    // Radiation parameters
+    double radiationFlux = 0.0;       // Photon flux intensity (0 = disabled, ~1e-4 to 1e-2 typical)
+    double radiationMaxEnergy = 1200.0; // Max photon energy in kJ/mol (~12.4 eV, Lyman-α range)
 
     // Boltzmann constant in kJ/(mol*K)
     static constexpr double kB = 8.314462618e-3;  // R in kJ/(mol*K), used as kB for molar energies

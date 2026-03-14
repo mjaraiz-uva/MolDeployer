@@ -486,6 +486,9 @@ namespace Simulator {
 		cfgJson["numCarbon"] = config.numCarbon;
 		cfgJson["numHydrogen"] = config.numHydrogen;
 		cfgJson["numOxygen"] = config.numOxygen;
+		cfgJson["initialH2O"] = config.initialH2O;
+		cfgJson["initialCO2"] = config.initialCO2;
+		cfgJson["initialO2"] = config.initialO2;
 		cfgJson["interactionCutoff"] = config.interactionCutoff;
 		cfgJson["A_form"] = config.A_form;
 		cfgJson["A_break"] = config.A_break;
@@ -495,6 +498,8 @@ namespace Simulator {
 		cfgJson["daemonTimeout"] = config.daemonTimeout;
 		cfgJson["atomResupplyInterval"] = config.atomResupplyInterval;
 		cfgJson["snapshotInterval"] = config.snapshotInterval;
+		cfgJson["radiationFlux"] = config.radiationFlux;
+		cfgJson["radiationMaxEnergy"] = config.radiationMaxEnergy;
 		cfgJson["boundaryType"] = config.boundaryType;
 		cfgJson["rngSeed"] = config.rngSeed;
 		cfgJson["plotDelaySec"] = config.plotDelaySec;
@@ -571,6 +576,9 @@ namespace Simulator {
 			if (cfgJson.contains("numCarbon")) cfg.numCarbon = cfgJson["numCarbon"].get<int>();
 			if (cfgJson.contains("numHydrogen")) cfg.numHydrogen = cfgJson["numHydrogen"].get<int>();
 			if (cfgJson.contains("numOxygen")) cfg.numOxygen = cfgJson["numOxygen"].get<int>();
+			if (cfgJson.contains("initialH2O")) cfg.initialH2O = cfgJson["initialH2O"].get<int>();
+			if (cfgJson.contains("initialCO2")) cfg.initialCO2 = cfgJson["initialCO2"].get<int>();
+			if (cfgJson.contains("initialO2")) cfg.initialO2 = cfgJson["initialO2"].get<int>();
 			if (cfgJson.contains("interactionCutoff")) cfg.interactionCutoff = cfgJson["interactionCutoff"].get<double>();
 			if (cfgJson.contains("A_form")) cfg.A_form = cfgJson["A_form"].get<double>();
 			if (cfgJson.contains("A_break")) cfg.A_break = cfgJson["A_break"].get<double>();
@@ -580,6 +588,8 @@ namespace Simulator {
 			if (cfgJson.contains("daemonTimeout")) cfg.daemonTimeout = cfgJson["daemonTimeout"].get<int>();
 			if (cfgJson.contains("atomResupplyInterval")) cfg.atomResupplyInterval = cfgJson["atomResupplyInterval"].get<int>();
 			if (cfgJson.contains("snapshotInterval")) cfg.snapshotInterval = cfgJson["snapshotInterval"].get<int>();
+			if (cfgJson.contains("radiationFlux")) cfg.radiationFlux = cfgJson["radiationFlux"].get<double>();
+			if (cfgJson.contains("radiationMaxEnergy")) cfg.radiationMaxEnergy = cfgJson["radiationMaxEnergy"].get<double>();
 			if (cfgJson.contains("boundaryType")) cfg.boundaryType = cfgJson["boundaryType"].get<std::string>();
 			if (cfgJson.contains("rngSeed")) cfg.rngSeed = cfgJson["rngSeed"].get<unsigned int>();
 			if (cfgJson.contains("plotDelaySec")) cfg.plotDelaySec = cfgJson["plotDelaySec"].get<float>();

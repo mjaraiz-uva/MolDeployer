@@ -180,6 +180,11 @@ namespace DataManager {
 				LoadField(configJson, "numHydrogen", g_config_parameters.numHydrogen);
 				LoadField(configJson, "numOxygen", g_config_parameters.numOxygen);
 
+				// Initial molecules
+				LoadField(configJson, "initialH2O", g_config_parameters.initialH2O);
+				LoadField(configJson, "initialCO2", g_config_parameters.initialCO2);
+				LoadField(configJson, "initialO2", g_config_parameters.initialO2);
+
 				// Interaction parameters
 				LoadField(configJson, "interactionCutoff", g_config_parameters.interactionCutoff);
 				LoadField(configJson, "A_form", g_config_parameters.A_form);
@@ -191,6 +196,10 @@ namespace DataManager {
 				LoadField(configJson, "enableStochasticBonds", g_config_parameters.enableStochasticBonds);
 				LoadField(configJson, "daemonTimeout", g_config_parameters.daemonTimeout);
 				LoadField(configJson, "atomResupplyInterval", g_config_parameters.atomResupplyInterval);
+
+				// Radiation
+				LoadField(configJson, "radiationFlux", g_config_parameters.radiationFlux);
+				LoadField(configJson, "radiationMaxEnergy", g_config_parameters.radiationMaxEnergy);
 
 				// Boundary
 				LoadField(configJson, "boundaryType", g_config_parameters.boundaryType);
@@ -278,6 +287,9 @@ namespace DataManager {
 		configJson["numCarbon"] = g_config_parameters.numCarbon;
 		configJson["numHydrogen"] = g_config_parameters.numHydrogen;
 		configJson["numOxygen"] = g_config_parameters.numOxygen;
+		configJson["initialH2O"] = g_config_parameters.initialH2O;
+		configJson["initialCO2"] = g_config_parameters.initialCO2;
+		configJson["initialO2"] = g_config_parameters.initialO2;
 		configJson["interactionCutoff"] = g_config_parameters.interactionCutoff;
 		configJson["A_form"] = g_config_parameters.A_form;
 		configJson["A_break"] = g_config_parameters.A_break;
@@ -286,6 +298,8 @@ namespace DataManager {
 		configJson["enableStochasticBonds"] = g_config_parameters.enableStochasticBonds;
 		configJson["daemonTimeout"] = g_config_parameters.daemonTimeout;
 		configJson["atomResupplyInterval"] = g_config_parameters.atomResupplyInterval;
+		configJson["radiationFlux"] = g_config_parameters.radiationFlux;
+		configJson["radiationMaxEnergy"] = g_config_parameters.radiationMaxEnergy;
 		configJson["boundaryType"] = g_config_parameters.boundaryType;
 		configJson["rngSeed"] = g_config_parameters.rngSeed;
 		configJson["displayPosX"] = g_config_parameters.displayPosX;

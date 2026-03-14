@@ -269,6 +269,27 @@ void MainControlWindow::renderParameterControls() {
         ImGui::Text("Total atoms: %d", totalAtoms);
 
         ImGui::Separator();
+        ImGui::Text("Initial Molecules");
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputInt("H2O##InitH2O", &m_initialH2O, 0, 0);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            if (m_initialH2O < 0) m_initialH2O = 0;
+            saveConfiguration();
+        }
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputInt("CO2##InitCO2", &m_initialCO2, 0, 0);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            if (m_initialCO2 < 0) m_initialCO2 = 0;
+            saveConfiguration();
+        }
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputInt("O2##InitO2", &m_initialO2, 0, 0);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            if (m_initialO2 < 0) m_initialO2 = 0;
+            saveConfiguration();
+        }
+
+        ImGui::Separator();
         ImGui::Text("Simulation Box");
 
         float boxX = static_cast<float>(m_boxSizeX);
@@ -315,6 +336,34 @@ void MainControlWindow::renderParameterControls() {
             if (dtFloat < 0.001f) dtFloat = 0.001f;
             m_dt = dtFloat;
             saveConfiguration();
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Ionizing Radiation");
+
+        float radFlux = static_cast<float>(m_radiationFlux);
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputFloat("Flux##RadFlux", &radFlux, 0.0f, 0.0f, "%.4f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            if (radFlux < 0.0f) radFlux = 0.0f;
+            if (radFlux > 1.0f) radFlux = 1.0f;
+            m_radiationFlux = radFlux;
+            saveConfiguration();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Photon flux intensity (0=disabled, ~1e-4 to 1e-2)");
+        }
+
+        float radMax = static_cast<float>(m_radiationMaxEnergy);
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputFloat("Max E##RadMax", &radMax, 0.0f, 0.0f, "%.0f");
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            if (radMax < 100.0f) radMax = 100.0f;
+            m_radiationMaxEnergy = radMax;
+            saveConfiguration();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Max photon energy (kJ/mol). 1200 ~ 12.4 eV (Lyman-alpha)");
         }
 
         ImGui::Separator();
@@ -438,6 +487,11 @@ void MainControlWindow::loadConfiguration() {
         m_A_form = config.A_form;
         m_A_break = config.A_break;
         m_activationFraction = config.activationFraction;
+        m_initialH2O = config.initialH2O;
+        m_initialCO2 = config.initialCO2;
+        m_initialO2 = config.initialO2;
+        m_radiationFlux = config.radiationFlux;
+        m_radiationMaxEnergy = config.radiationMaxEnergy;
         m_enableDaemons = config.enableDaemons;
         m_enableStochasticBonds = config.enableStochasticBonds;
         m_daemonTimeout = config.daemonTimeout;
@@ -474,6 +528,11 @@ void MainControlWindow::saveConfiguration() {
         config.A_form = m_A_form;
         config.A_break = m_A_break;
         config.activationFraction = m_activationFraction;
+        config.initialH2O = m_initialH2O;
+        config.initialCO2 = m_initialCO2;
+        config.initialO2 = m_initialO2;
+        config.radiationFlux = m_radiationFlux;
+        config.radiationMaxEnergy = m_radiationMaxEnergy;
         config.enableDaemons = m_enableDaemons;
         config.enableStochasticBonds = m_enableStochasticBonds;
         config.daemonTimeout = m_daemonTimeout;
