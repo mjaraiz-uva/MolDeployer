@@ -11,6 +11,8 @@
 #include "../DataManager/DataManager.h"
 #include "../Chemistry/Reactor.h"
 #include "Screenshot.h"
+#include <GLFW/glfw3.h>
+extern GLFWwindow* g_Window;
 
 #ifdef _WIN32
 #include <windows.h>
@@ -504,6 +506,12 @@ void MainControlWindow::loadConfiguration() {
         // Load and apply theme
         ThemeManager::ThemeType theme = ThemeManager::Theme::getInstance().stringToTheme(config.uiTheme);
         ThemeManager::Theme::getInstance().applyTheme(theme);
+
+        // Resize and reposition GLFW window to match loaded config
+        if (g_Window) {
+            glfwSetWindowSize(g_Window, config.displaySizeX, config.displaySizeY);
+            glfwSetWindowPos(g_Window, config.displayPosX, config.displayPosY);
+        }
     }
     catch (const std::exception& e) {
         Logger::Error(std::string("Error loading configuration: ") + e.what());

@@ -22,6 +22,7 @@ namespace DataManager {
 	static json configJson;
 	static ConfigParameters g_config_parameters;
 	static std::mutex g_config_mutex;
+	static std::string g_inputConfigName;  // Original input file name (without .json)
 
 	// Global Random Engine and Mutex
 	static std::mt19937 g_random_engine;
@@ -155,6 +156,7 @@ namespace DataManager {
 		Logger::Info("DataManager: Attempting to load configuration from: " + filename);
 
 		g_config_parameters.simulationName = simulationName;
+		g_inputConfigName = simulationName;  // Remember original input file
 
 		std::ifstream configFile(filename);
 		if (!configFile.is_open()) {
@@ -163,7 +165,7 @@ namespace DataManager {
 		}
 		else {
 			try {
-				configFile >> configJson;
+				configJson = json::parse(configFile, nullptr, true, true);  // ignore_comments=true
 
 				// Simulation control
 				LoadField(configJson, "maxSteps", g_config_parameters.maxSteps);
@@ -273,8 +275,13 @@ namespace DataManager {
 	bool SaveConfigParameters() {
 		std::lock_guard<std::mutex> lock(g_config_mutex);
 		std::lock_guard<std::mutex> rng_lock(g_rng_mutex);
-		std::string filename = g_config_parameters.simulationName + ".json";
-		Logger::Debug("DataManager: Saving configuration to: " + filename);
+		// Never overwrite the original input config file (preserves comments)
+		std::string baseName = g_config_parameters.simulationName;
+		if (baseName == g_inputConfigName) {
+			baseName += "_1";
+		}
+		std::string filename = baseName + ".json";
+		Logger::Debug("DataManager: Saving config to: " + filename);
 
 		// Build JSON from current parameters
 		configJson["simulationName"] = g_config_parameters.simulationName;
@@ -329,10 +336,8 @@ namespace DataManager {
 			}
 		}
 
-		// Save RNG state
-		std::ostringstream rngStream;
-		rngStream << g_random_engine;
-		configJson["rngState"] = rngStream.str();
+		// RNG state is NOT saved in config — only in snapshots
+		configJson.erase("rngState");
 
 		std::ofstream configFile(filename);
 		if (!configFile.is_open()) {

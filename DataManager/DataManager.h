@@ -30,7 +30,7 @@ namespace DataManager {
 	// Configuration parameters for the MolecularDeployer chemistry simulation.
 	// Replaces the economic ConfigParameters from DEPX/DEPLOYERS.
 	struct ConfigParameters {
-		std::string simulationName = "MolSim";
+		std::string simulationName = "EarthPreOzone";
 
 		// Simulation control
 		int maxSteps = 100000;            // Total simulation timesteps

@@ -83,11 +83,14 @@ namespace Screenshot {
             g_pendingFilename.clear();
         }
 
-        // Get framebuffer size
-        GLint viewport[4];
-        glGetIntegerv(GL_VIEWPORT, viewport);
-        int width = viewport[2];
-        int height = viewport[3];
+        // Get full window framebuffer size (not the current GL viewport which may be a sub-region)
+        int width = 0, height = 0;
+        GLFWwindow* window = glfwGetCurrentContext();
+        if (window) {
+            glfwGetFramebufferSize(window, &width, &height);
+        }
+        // Set viewport to full framebuffer before reading pixels
+        glViewport(0, 0, width, height);
 
         if (width <= 0 || height <= 0) {
             Logger::Error("Screenshot: Invalid viewport size.");

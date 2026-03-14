@@ -148,7 +148,21 @@ void PresentFrame() {
     }
 }
 
-int main() {
+// Determine which config file to load (without .json extension)
+static std::string FindConfigName(int argc, char* argv[]) {
+    // 1. Command-line argument: DEPXDebug.exe MyScenario
+    if (argc > 1) {
+        std::string arg = argv[1];
+        // Strip .json if provided
+        if (arg.size() > 5 && arg.substr(arg.size() - 5) == ".json")
+            arg = arg.substr(0, arg.size() - 5);
+        return arg;
+    }
+    // 2. Default name
+    return "EarthPreOzone";
+}
+
+int main(int argc, char* argv[]) {
     // 1. Initialize platform (create window and graphics context)
     // Attempt to load a default configuration first to get window size
     // This is a simplified approach; a more robust system might parse command-line args
@@ -176,8 +190,9 @@ int main() {
             std::cerr << "[DEBUG] Error getting CWD in main: " << e.what() << std::endl;
             // Logger::Error("[DEBUG] Error getting CWD in main: " + std::string(e.what()));
         }
-        if (!DataManager::LoadConfigParameters("MolSim")) {
-            Logger::Warning("DEPX.cpp: Could not load MolSim.json for initial window size. Using defaults from ConfigParameters struct.");
+        std::string configName = FindConfigName(argc, argv);
+        if (!DataManager::LoadConfigParameters(configName)) {
+            Logger::Warning("DEPX.cpp: Could not load " + configName + ".json. Using defaults.");
         }
         const auto& config = DataManager::GetConfigParameters();
         if (!CreateAppWindow("MolecularDeployer", config.displaySizeX, config.displaySizeY)) {
@@ -359,9 +374,8 @@ int main() {
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     UNREFERENCED_PARAMETER(hInstance);
     UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
     UNREFERENCED_PARAMETER(nCmdShow);
 
-    // Call your existing main function
-    return main();
+    // Pass command line to main
+    return main(__argc, __argv);
 }

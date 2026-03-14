@@ -33,9 +33,7 @@ namespace Simulator {
 		int startStep = g_start_step.load();
 		Logger::Info("Simulator: Calculation task started from step " + std::to_string(startStep) + ".");
 
-		int maxSteps = DataManager::GetMaxSteps();
-
-		for (int step = startStep; step < maxSteps; ++step) {
+		for (int step = startStep; step < DataManager::GetMaxSteps(); ++step) {
 			std::unique_lock<std::mutex> lock(thread_management_mutex);
 			cv_step.wait(lock, [] {
 				return g_simulation_state == RUNNING ||
@@ -156,7 +154,8 @@ namespace Simulator {
 		}
 
 		// Check completion
-		if (g_simulation_state != IDLE && g_current_step_calculated == maxSteps - 1) {
+		int maxSteps = DataManager::GetMaxSteps();
+		if (g_simulation_state != IDLE && g_current_step_calculated >= maxSteps - 1) {
 			g_simulation_state = COMPLETED;
 			Logger::Info("========================================");
 			Logger::Info("  SIMULATION COMPLETE — " + std::to_string(maxSteps) + " steps");
@@ -513,7 +512,7 @@ namespace Simulator {
 		cfgJson["censusSortMode"] = config.censusSortMode;
 		snap["config"] = cfgJson;
 
-		snap["reactor"] = g_reactor->SaveSnapshot();
+		snap["primordialSoup"] = g_reactor->SaveSnapshot();
 
 		// Save RNG state
 		std::ostringstream rngStream;
@@ -555,7 +554,7 @@ namespace Simulator {
 
 		nlohmann::json snap;
 		try {
-			file >> snap;
+			snap = nlohmann::json::parse(file, nullptr, true, true);  // ignore_comments=true
 		}
 		catch (const nlohmann::json::parse_error& e) {
 			Logger::Error("Simulator::LoadSnapshot: JSON parse error: " + std::string(e.what()));
@@ -610,7 +609,7 @@ namespace Simulator {
 			g_reactor = std::make_unique<Chemistry::Reactor>("MolecularReactor");
 		}
 
-		if (!g_reactor->LoadSnapshot(snap["reactor"])) {
+		if (!g_reactor->LoadSnapshot(snap["primordialSoup"])) {
 			Logger::Error("Simulator::LoadSnapshot: Reactor failed to load snapshot.");
 			return false;
 		}
@@ -629,7 +628,7 @@ namespace Simulator {
 		}
 
 		// Set start step so PerformCalculationTask resumes from the right place
-		int savedStep = snap["reactor"]["currentStep"].get<int>();
+		int savedStep = snap["primordialSoup"]["currentStep"].get<int>();
 		g_start_step = savedStep + 1;
 		g_current_step_calculated = savedStep;
 

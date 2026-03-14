@@ -404,8 +404,8 @@ nlohmann::json Reactor::SaveSnapshot() const {
     snap["nextBondId"] = m_nextBondId;
     snap["nextMoleculeId"] = m_nextMoleculeId;
 
-    // Serialize atoms (with inline daemon state)
-    auto& atomsArr = snap["atoms"];
+    // Serialize reactors (atoms + daemon state)
+    auto& atomsArr = snap["reactors"];
     atomsArr = nlohmann::json::array();
     for (const auto& atom : m_atoms) {
         nlohmann::json a;
@@ -463,7 +463,7 @@ bool Reactor::LoadSnapshot(const nlohmann::json& snapshot) {
     m_nextMoleculeId = snapshot["nextMoleculeId"].get<int>();
 
     // Restore atoms
-    for (const auto& atomData : snapshot["atoms"]) {
+    for (const auto& atomData : snapshot["reactors"]) {
         int id = atomData["id"].get<int>();
         Element elem = static_cast<Element>(atomData["element"].get<int>());
         auto atom = std::make_unique<Atom>(id, elem);
@@ -499,7 +499,7 @@ bool Reactor::LoadSnapshot(const nlohmann::json& snapshot) {
 
     // Restore per-atom daemon state
     auto& recipeBook = RecipeBook::GetInstance();
-    const auto& atomsJson = snapshot["atoms"];
+    const auto& atomsJson = snapshot["reactors"];
     for (size_t i = 0; i < m_atoms.size(); ++i) {
         if (atomsJson[i].contains("daemon")) {
             const auto& dj = atomsJson[i]["daemon"];
