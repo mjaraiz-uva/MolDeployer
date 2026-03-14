@@ -98,15 +98,21 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <OutDir>$(SolutionDir)$(ProjectName)\</OutDir>
+    <OutDir>$(SolutionDir)WORK\</OutDir>
+    <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)$(Configuration)</TargetName>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)WORK\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <TargetName>$(ProjectName)$(Configuration)</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>$(SolutionDir)$(ProjectName)\</OutDir>
+    <OutDir>$(SolutionDir)WORK\</OutDir>
+    <IntDir>obj\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>$(ProjectName)$(Configuration)</TargetName>
+    <LocalDebuggerWorkingDirectory>$(SolutionDir)WORK\</LocalDebuggerWorkingDirectory>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <TargetName>$(ProjectName)$(Configuration)</TargetName>
@@ -219,6 +225,7 @@
   <ItemGroup>
     <ClCompile Include="DEPX.cpp" />
     <ClCompile Include="main_control_window.cpp" />
+    <ClCompile Include="Screenshot.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DataManager\DataManager.vcxproj">
@@ -250,6 +257,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main_control_window.h" />
+    <ClInclude Include="Screenshot.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

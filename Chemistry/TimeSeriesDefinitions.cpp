@@ -70,7 +70,7 @@ namespace {
                     auto reactor = GetReactorSafe();
                     return reactor ? static_cast<float>(reactor->GetFreeAtomCountByElement(Chemistry::Element::C)) : 0.0f;
                 },
-                ImVec4(0.3f, 0.3f, 0.3f, 1.0f),
+                ImVec4(0.2f, 0.8f, 0.2f, 1.0f),
                 ImPlotMarker_Circle);
 
             RegisterTS("free_H_count", "Free H", "Count",

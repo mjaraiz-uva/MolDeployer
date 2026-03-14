@@ -205,6 +205,9 @@ namespace DataManager {
 				LoadField(configJson, "testPersistence", g_config_parameters.testPersistence);
 				LoadField(configJson, "plotDelaySec", g_config_parameters.plotDelaySec);
 				LoadField(configJson, "uiTheme", g_config_parameters.uiTheme);
+				LoadField(configJson, "snapshotInterval", g_config_parameters.snapshotInterval);
+				LoadField(configJson, "censusSortMode", g_config_parameters.censusSortMode);
+				LoadField(configJson, "uiScale", g_config_parameters.uiScale);
 
 				Logger::SetConsoleLogging(g_config_parameters.logToConsole);
 
@@ -294,6 +297,9 @@ namespace DataManager {
 		configJson["testPersistence"] = g_config_parameters.testPersistence;
 		configJson["plotDelaySec"] = g_config_parameters.plotDelaySec;
 		configJson["uiTheme"] = g_config_parameters.uiTheme;
+		configJson["snapshotInterval"] = g_config_parameters.snapshotInterval;
+		configJson["censusSortMode"] = g_config_parameters.censusSortMode;
+		configJson["uiScale"] = g_config_parameters.uiScale;
 
 		// Save plot states
 		if (!g_plot_states.empty()) {

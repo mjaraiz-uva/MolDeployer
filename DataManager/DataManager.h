@@ -74,7 +74,10 @@ namespace DataManager {
 		bool autoStart = false;
 		bool testPersistence = false;  // Run persistence test on startup
 		float plotDelaySec = 0.01f;
-		std::string uiTheme = "dark";
+		std::string uiTheme = "system";
+		int snapshotInterval = 0;     // Auto-save snapshot every N steps (0=disabled)
+		int censusSortMode = 0;       // 0=size (atoms), 1=count
+		float uiScale = 1.0f;
 
 		ConfigParameters() = default;
 	};

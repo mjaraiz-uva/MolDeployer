@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MolecularDeployer — Project Brief</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 900px;
+    margin: 40px auto;
+    padding: 0 20px;
+    line-height: 1.6;
+    color: #333;
+    background: #fafafa;
+  }
+  h1 { color: #1a5276; border-bottom: 3px solid #2980b9; padding-bottom: 10px; }
+  h2 { color: #2c3e50; border-bottom: 1px solid #bdc3c7; padding-bottom: 5px; margin-top: 40px; }
+  h3 { color: #34495e; }
+  table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+  th, td { border: 1px solid #bdc3c7; padding: 8px 12px; text-align: left; }
+  th { background: #2c3e50; color: white; }
+  tr:nth-child(even) { background: #ecf0f1; }
+  code { background: #ecf0f1; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 5px; overflow-x: auto; }
+  pre code { background: none; color: inherit; }
+  blockquote { border-left: 4px solid #2980b9; margin: 15px 0; padding: 10px 20px; background: #eaf2f8; }
+  .meta { color: #7f8c8d; font-size: 0.95em; margin-bottom: 30px; }
+  .meta strong { color: #2c3e50; }
+  hr { border: none; border-top: 1px solid #bdc3c7; margin: 30px 0; }
+  ul, ol { margin: 10px 0; }
+  li { margin: 5px 0; }
+  .highlight { background: #fef9e7; border: 1px solid #f9e79f; padding: 15px; border-radius: 5px; margin: 15px 0; }
+  .status-done { color: #27ae60; font-weight: bold; }
+  .status-next { color: #e67e22; font-weight: bold; }
+  .status-issue { color: #c0392b; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>MolecularDeployer — Project Brief</h1>
+
+<div class="meta">
+  <strong>Date:</strong> March 2026 (updated 2026-03-14)<br>
+  <strong>Author:</strong> Martín Jaraíz (UVa) — with Claude research assistance<br>
+  <strong>Framework basis:</strong> DEPX (C++ ABM framework, ~9 months old)<br>
+  <strong>Companion project:</strong> DEPLOYERS (macroeconomic ABM simulator)
+</div>
+
+<hr>
+
+<h2>1. Project Goal</h2>
+
+<p><strong>MolecularDeployer</strong> is an agent-based simulator where individual <strong>C, H, O atoms</strong> move in a simulated 3D space, encounter each other stochastically, form covalent bonds according to simplified but physically grounded rules, and build increasingly complex molecular structures from scratch.</p>
+
+<p>The simulation tracks which molecules emerge as:</p>
+<ul>
+  <li><strong>Most thermodynamically stable</strong> — long-lived, low total energy</li>
+  <li><strong>Most used as intermediates</strong> — high throughput, frequently formed and consumed in further reactions</li>
+</ul>
+
+<p>This is a direct transposition of the <strong>DEPLOYERS</strong> economic ABM logic into chemistry.</p>
+
+<hr>
+
+<h2>2. DEPLOYERS ↔ MolecularDeployer Analogy</h2>
+
+<table>
+  <tr><th>DEPLOYERS (Economy)</th><th>MolecularDeployer (Chemistry)</th></tr>
+  <tr><td>Worker agent</td><td>Atom agent (C, H, O)</td></tr>
+  <tr><td>PurchaseList (needs)</td><td>Unsatisfied valence (bonding capacity)</td></tr>
+  <tr><td>Worker starts a new Firm</td><td>Atoms form a new Molecule (bond creation)</td></tr>
+  <tr><td>Product / Intermediate goods</td><td>Molecules / Intermediate species</td></tr>
+  <tr><td>Firm closure (no demand)</td><td>Molecular decomposition (instability)</td></tr>
+  <tr><td>Active population cap</td><td>Conservation of atoms (fixed pool)</td></tr>
+  <tr><td>Market price / demand signals</td><td>Bond energy / thermodynamic stability</td></tr>
+  <tr><td>Emergent economy from zero firms</td><td>Emergent reaction network from free atoms</td></tr>
+  <tr><td>Daemon (firm agent)</td><td>DaemonState riding an atom</td></tr>
+  <tr><td>Firm death → decomposition</td><td>Timeout → bond breaks → molecule decomposes</td></tr>
+</table>
+
+<div class="highlight">
+  <strong>Key shared principle:</strong> Both simulators start from nothing (zero firms / free atoms) and let complex structures (economies / molecular networks) emerge purely from local agent interactions, with no top-down design.
+</div>
+
+<hr>
+
+<h2>3. Current Architecture</h2>
+
+<h3>3.1 Module Structure</h3>
+
+<table>
+  <tr><th>Module</th><th>Purpose</th></tr>
+  <tr><td><strong>Chemistry/</strong></td><td>Atom, Bond, Molecule, Reactor, SpatialGrid, Recipe/RecipeBook, DaemonState, ChemistryConfig</td></tr>
+  <tr><td><strong>Simulator/</strong></td><td>Simulation loop, timestep orchestration, log reporting</td></tr>
+  <tr><td><strong>DataManager/</strong></td><td>Config load/save (JSON), snapshot persistence</td></tr>
+  <tr><td><strong>Visualizer/</strong></td><td>ImGui/ImPlot time-series plots with INI persistence</td></tr>
+  <tr><td><strong>InterfaceGUI/</strong></td><td>GLFW + OpenGL window management</td></tr>
+  <tr><td><strong>Logger/</strong></td><td>Thread-safe logging (console + file)</td></tr>
+  <tr><td><strong>ThemeManager/</strong></td><td>ImGui theme management</td></tr>
+  <tr><td><strong>DEPX/</strong></td><td>Main entry point, control window UI</td></tr>
+</table>
+
+<h3>3.2 Riding Daemons System</h3>
+
+<p>The v2 daemon system (riding daemons) is the core innovation. Every atom carries a <code>DaemonState</code>:</p>
+
+<pre><code>struct DaemonState {
+    const Recipe* recipe;       // What this daemon is trying to build
+    int assignedStep;           // When daemon was assigned
+    int timeoutSteps;           // Steps until timeout
+    int successCount = 0;
+    Bond* heldBond = nullptr;   // null = SEARCHING, non-null = HOLDING
+};</code></pre>
+
+<p><strong>Lifecycle:</strong></p>
+<ul>
+  <li><strong>SEARCHING:</strong> Atom's daemon checks spatial neighbors for a complementary component. On match → form bond → become HOLDING.</li>
+  <li><strong>HOLDING:</strong> Bond persists. On timeout → bond breaks → molecule decomposes → both atoms get fresh daemons → back to SEARCHING.</li>
+</ul>
+
+<p><strong>Darwinian Selection:</strong> On success, an offspring daemon spawns on a neighbor atom with a recipe that uses the product as input (e.g., H+H→H₂ success → offspring seeks H₂+O→H₂O). This creates emergent supply chains and Darwinian competition for recipes.</p>
+
+<h3>3.3 Bond Formation</h3>
+
+<p>Two parallel mechanisms:</p>
+<ol>
+  <li><strong>Stochastic bonds</strong> — Arrhenius-like probability based on bond energy and temperature</li>
+  <li><strong>Daemon-directed bonds</strong> — daemons search for recipe-matching neighbors within cutoff radius</li>
+</ol>
+
+<p><strong>Bond energy table (kJ/mol):</strong></p>
+
+<table>
+  <tr><th>Bond</th><th>Energy</th><th>Bond</th><th>Energy</th></tr>
+  <tr><td>C–H</td><td>411</td><td>C–C</td><td>346</td></tr>
+  <tr><td>O–H</td><td>459</td><td>C=C</td><td>614</td></tr>
+  <tr><td>C–O</td><td>358</td><td>C=O</td><td>799</td></tr>
+  <tr><td>C≡O</td><td>1072</td><td>O=O</td><td>498</td></tr>
+  <tr><td>H–H</td><td>436</td><td>C≡C</td><td>839</td></tr>
+</table>
+
+<p><strong>Valence constraints:</strong> C=4, O=2, H=1</p>
+
+<p><strong>Bond formation probability:</strong></p>
+<pre><code>P_form = min(1, A_form × exp(−E_activation / (k_B × T)))</code></pre>
+
+<p><strong>Bond breaking probability (Arrhenius-like):</strong></p>
+<pre><code>P_break = A_break × exp(−E_bond / (k_B × T))</code></pre>
+
+<p>Stronger bonds break less often. Temperature T is the key control parameter.</p>
+
+<h3>3.4 Visualization</h3>
+
+<ul>
+  <li><strong>Time-series plots</strong> (ImPlot): atom counts, bond counts, energy, daemon stats (searching/holding/spawns/successes/deaths)</li>
+  <li><strong>Per-plot controls:</strong> Show Line, Show Markers, Log Y scale, Marker Size — all persisted via custom ImGui INI handler</li>
+  <li><strong>Molecule Census window:</strong> real-time list of all molecular species, sortable by size (atom count) or abundance (count %)</li>
+  <li><strong>Log reporting:</strong> species sorted by size (largest first), per-atom bond energy</li>
+</ul>
+
+<hr>
+
+<h2>4. State of the Art</h2>
+
+<h3>4.1 Agent-Based Molecular Self-Assembly</h3>
+<p>Fortuna &amp; Troisi (PNAS 2005) pioneered ABM for molecular self-assembly. Their agents represent rigid molecular fragments that evolve via stochastic, deterministic, and adaptive rules. <strong>Limitation:</strong> they work with pre-formed molecules assembling into crystals — not atoms forming bonds from scratch.</p>
+
+<h3>4.2 Prebiotic Reaction Network Generation (Allchemy / NOEL)</h3>
+<p>Grzybowski et al. (Science 2020) created Allchemy: a forward-synthesis algorithm encoding ~500 known prebiotic reactions, applied iteratively to 6 primordial substrates. Generated ~35,000 compounds. The expanded NOEL network (Chem 2024) reached 4.9 billion reactions from 9 starting materials. <strong>Limitation:</strong> relies on pre-encoded reaction rules, not emergent bond formation.</p>
+
+<h3>4.3 Reactive Molecular Dynamics (ReaxFF)</h3>
+<p>ReaxFF (van Duin, Goddard et al.) uses bond-order formalism instead of explicit bonds, allowing continuous bond formation/breaking in MD simulations. <strong>Limitation:</strong> computationally extremely expensive (quantum-level), limiting scalability.</p>
+
+<h3>4.4 The Gap MolecularDeployer Fills</h3>
+<p>No existing system combines:</p>
+<ol>
+  <li>ABM "deploy from scratch" philosophy (atoms as agents, not pre-formed molecules)</li>
+  <li>Simplified but thermodynamically grounded bond-formation rules (not full QM)</li>
+  <li>Darwinian daemon selection creating emergent supply chains</li>
+  <li>The economic-ABM structural analogy (supply/demand ↔ valence satisfaction)</li>
+</ol>
+
+<hr>
+
+<h2>5. What Works, What's Next</h2>
+
+<h3><span class="status-done">✓</span> Implemented and Working</h3>
+<ul>
+  <li>Full atom movement in 3D box with reflective/periodic boundaries</li>
+  <li>Stochastic bond formation and breaking (Arrhenius-like)</li>
+  <li>Riding daemon system with Darwinian offspring selection</li>
+  <li>Recipe book with forward and reverse index</li>
+  <li>Spatial grid for efficient neighbor queries</li>
+  <li>Molecule tracking, census, and formula computation (Hill system)</li>
+  <li>Atom resupply (periodic injection of fresh atoms)</li>
+  <li>Snapshot save/load with full daemon state persistence, resume from completed snapshots with extended maxSteps</li>
+  <li>Auto-save snapshots at configurable interval ("Save Every" N steps)</li>
+  <li>Screenshot capture (BMP via glReadPixels): manual "Snap" button + auto alongside snapshot saves</li>
+  <li>Time-series visualization with persistent per-plot settings (Log Y, markers, line, marker size)</li>
+  <li>Adaptive X-axis tick labels (auto-doubling interval to avoid overlap)</li>
+  <li>Molecule Census UI window (sortable by size or count, persisted)</li>
+  <li>Detailed log reporting (species by size, per-atom energy)</li>
+  <li>UI Scale persisted across sessions</li>
+  <li>Project structure: WORK/ (runtime), DOCS/ (documentation), source modules unchanged</li>
+</ul>
+
+<h3><span class="status-issue">⚠</span> Known Issue: Blob Accretion</h3>
+<p>Without steric/geometric constraints, <code>MakeRoomForBond</code> allows unchecked accretion — one molecule can absorb most atoms into a heavily cross-linked blob (e.g., C₉₄₃H₁₀₈₂ with H/C ratio ~1.15, indicating dense cross-linking rather than chains).</p>
+
+<h3><span class="status-next">→</span> Next Task: 3D Strain Constraints</h3>
+<p>Adding steric constraints to prevent unrealistic blob growth. Expected approach: penalize or reject bonds that would create geometrically implausible structures (too many bonds in too small a volume, unrealistic bond angles).</p>
+
+<hr>
+
+<h2>6. Key References</h2>
+
+<ul>
+  <li>Axtell &amp; Farmer (2025). "Agent-Based Modeling in Economics and Finance." <em>J. Econ. Lit.</em> 63(1), 197–287.</li>
+  <li>Fortuna &amp; Troisi (2005). "An agent-based approach for modeling molecular self-organization." <em>PNAS</em> 102(2), 410–415.</li>
+  <li>Wołos, Roszak et al. (2020). "Synthetic connectivity, emergence, and self-regeneration in the network of prebiotic chemistry." <em>Science</em> 369, eaaw1955.</li>
+  <li>Roszak et al. (2024). "Emergence of metabolic-like cycles in blockchain-orchestrated reaction networks." <em>Chem</em>.</li>
+  <li>van Duin et al. (2001/2016). ReaxFF reactive force field. <em>npj Comput. Mater.</em> 2, 15011.</li>
+  <li>Hordijk (2022). "Autocatalytic Sets: Complexity at the Interface of Chemistry and Biology." Templeton Foundation.</li>
+  <li>Semenov et al. (2016). "Autocatalytic, bistable, oscillatory networks of biologically relevant organic reactions." <em>Nature</em> 537, 656–660.</li>
+  <li>Pérez-Villa, Pietrucci, Saitta (2020). "Prebiotic chemistry and origins of life research with atomistic computer simulations." <em>Phys. Life Rev.</em> 34-35, 105–135.</li>
+</ul>
+
+<hr>
+
+<p><em>This document is maintained alongside the codebase and updated as the project evolves.</em></p>
+
+</body>
+</html>

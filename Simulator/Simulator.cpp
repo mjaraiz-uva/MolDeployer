@@ -14,6 +14,7 @@
 #include "../Logger/Logger.h"
 #include "../Chemistry/Reactor.h"
 #include "../Chemistry/Particle.h"
+#include "../DEPX/Screenshot.h"
 
 namespace Simulator {
 
@@ -133,6 +134,18 @@ namespace Simulator {
 
 			g_current_step_calculated = step;
 
+			// Auto-save snapshot at interval (with screenshot)
+			{
+				int interval = DataManager::GetConfigParameters().snapshotInterval;
+				if (interval > 0 && step > 0 && step % interval == 0) {
+					const auto& cfg = DataManager::GetConfigParameters();
+					std::string baseName = cfg.simulationName + "_" + std::to_string(step);
+					SaveSnapshot(baseName + ".json");
+					Screenshot::Request(baseName + ".bmp");
+					Logger::Info("Simulator: Auto-saved periodic snapshot: " + baseName);
+				}
+			}
+
 			// Apply delay
 			std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<int>(g_calculation_delay_ms.load())));
 
@@ -184,9 +197,10 @@ namespace Simulator {
 			// Auto-save final snapshot
 			int finalStep = g_current_step_calculated.load();
 			const auto& cfg = DataManager::GetConfigParameters();
-			std::string autoFile = cfg.simulationName + "_" + std::to_string(finalStep) + ".json";
-			SaveSnapshot(autoFile);
-			Logger::Info("Simulator: Auto-saved final snapshot: " + autoFile);
+			std::string baseName = cfg.simulationName + "_" + std::to_string(finalStep);
+			SaveSnapshot(baseName + ".json");
+			Screenshot::Request(baseName + ".bmp");
+			Logger::Info("Simulator: Auto-saved final snapshot: " + baseName);
 		}
 		else if (g_simulation_state != IDLE && g_simulation_state != COMPLETED) {
 			Logger::Warning("Simulator: Calculation task exited prematurely at step " + std::to_string(g_current_step_calculated.load()));
@@ -281,6 +295,9 @@ namespace Simulator {
 
 	void ResumeCalculation() {
 		if (g_simulation_state == PAUSED) {
+			// Ensure time series buffers are large enough for current maxSteps
+			DataManager::TimeSeriesRegistry::GetInstance().ExtendAllSeries(DataManager::GetMaxSteps());
+
 			if (!worker_thread.joinable()) {
 				// No worker thread (e.g. after loading a snapshot) — start a new one
 				g_simulation_state = RUNNING;
@@ -297,8 +314,27 @@ namespace Simulator {
 				Logger::Info("Simulator: Calculation resumed.");
 			}
 		}
-		else if (g_simulation_state == IDLE || g_simulation_state == COMPLETED) {
-			Logger::Info("Simulator: Resuming from IDLE/COMPLETED, treating as new run.");
+		else if (g_simulation_state == COMPLETED) {
+			int currentStep = g_current_step_calculated.load();
+			int maxSteps = DataManager::GetMaxSteps();
+			if (currentStep + 1 < maxSteps) {
+				// MaxSteps was increased — continue from where we left off
+				Logger::Info("Simulator: Resuming COMPLETED simulation from step "
+					+ std::to_string(currentStep + 1) + " to " + std::to_string(maxSteps));
+				g_start_step = currentStep + 1;
+				// Ensure time series buffers are large enough
+				DataManager::TimeSeriesRegistry::GetInstance().ExtendAllSeries(maxSteps);
+				if (worker_thread.joinable()) {
+					worker_thread.join();
+				}
+				g_simulation_state = RUNNING;
+				worker_thread = std::thread(PerformCalculationTask);
+			}
+			else {
+				Logger::Info("Simulator: Already completed all " + std::to_string(maxSteps) + " steps.");
+			}
+		}
+		else if (g_simulation_state == IDLE) {
 			RestartCalculation();
 			StartAsyncCalculation();
 		}
@@ -458,6 +494,7 @@ namespace Simulator {
 		cfgJson["enableStochasticBonds"] = config.enableStochasticBonds;
 		cfgJson["daemonTimeout"] = config.daemonTimeout;
 		cfgJson["atomResupplyInterval"] = config.atomResupplyInterval;
+		cfgJson["snapshotInterval"] = config.snapshotInterval;
 		cfgJson["boundaryType"] = config.boundaryType;
 		cfgJson["rngSeed"] = config.rngSeed;
 		cfgJson["plotDelaySec"] = config.plotDelaySec;
@@ -468,6 +505,7 @@ namespace Simulator {
 		cfgJson["logToConsole"] = config.logToConsole;
 		cfgJson["autoStart"] = config.autoStart;
 		cfgJson["uiTheme"] = config.uiTheme;
+		cfgJson["censusSortMode"] = config.censusSortMode;
 		snap["config"] = cfgJson;
 
 		snap["reactor"] = g_reactor->SaveSnapshot();
@@ -496,6 +534,18 @@ namespace Simulator {
 		if (!file.is_open()) {
 			Logger::Error("Simulator::LoadSnapshot: Failed to open file: " + filename);
 			return false;
+		}
+
+		// Stop and join any existing worker thread before loading
+		{
+			std::lock_guard<std::mutex> lock(thread_management_mutex);
+			if (g_simulation_state == RUNNING || g_simulation_state == STEPPING) {
+				g_simulation_state = IDLE;
+			}
+		}
+		cv_step.notify_all();
+		if (worker_thread.joinable()) {
+			worker_thread.join();
 		}
 
 		nlohmann::json snap;
@@ -529,6 +579,7 @@ namespace Simulator {
 			if (cfgJson.contains("enableStochasticBonds")) cfg.enableStochasticBonds = cfgJson["enableStochasticBonds"].get<bool>();
 			if (cfgJson.contains("daemonTimeout")) cfg.daemonTimeout = cfgJson["daemonTimeout"].get<int>();
 			if (cfgJson.contains("atomResupplyInterval")) cfg.atomResupplyInterval = cfgJson["atomResupplyInterval"].get<int>();
+			if (cfgJson.contains("snapshotInterval")) cfg.snapshotInterval = cfgJson["snapshotInterval"].get<int>();
 			if (cfgJson.contains("boundaryType")) cfg.boundaryType = cfgJson["boundaryType"].get<std::string>();
 			if (cfgJson.contains("rngSeed")) cfg.rngSeed = cfgJson["rngSeed"].get<unsigned int>();
 			if (cfgJson.contains("plotDelaySec")) cfg.plotDelaySec = cfgJson["plotDelaySec"].get<float>();
@@ -539,6 +590,7 @@ namespace Simulator {
 			if (cfgJson.contains("logToConsole")) cfg.logToConsole = cfgJson["logToConsole"].get<bool>();
 			if (cfgJson.contains("autoStart")) cfg.autoStart = cfgJson["autoStart"].get<bool>();
 			if (cfgJson.contains("uiTheme")) cfg.uiTheme = cfgJson["uiTheme"].get<std::string>();
+			if (cfgJson.contains("censusSortMode")) cfg.censusSortMode = cfgJson["censusSortMode"].get<int>();
 
 			// Re-initialize time series registry for potentially new maxSteps
 			DataManager::TimeSeriesRegistry::GetInstance().InitializeAllSeries(cfg.maxSteps);

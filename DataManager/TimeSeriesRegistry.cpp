@@ -61,6 +61,14 @@ namespace DataManager {
         }
     }
 
+    void TimeSeriesRegistry::ExtendAllSeries(int newMaxSteps) {
+        for (auto& [id, series] : m_series) {
+            if (static_cast<int>(series.data.size()) < newMaxSteps) {
+                series.data.resize(newMaxSteps, 0.0f);
+            }
+        }
+    }
+
     const std::vector<float>* TimeSeriesRegistry::GetSeriesData(const std::string& id) const {
         auto it = m_series.find(id);
         if (it != m_series.end()) {

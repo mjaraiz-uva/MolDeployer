@@ -10,6 +10,7 @@
 #include "../Logger/Logger.h"
 #include "../DataManager/DataManager.h"
 #include "../Chemistry/Reactor.h"
+#include "Screenshot.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -67,6 +68,11 @@ void MainControlWindow::renderSimulatorControls() {
             runPauseLabel = "Resume";
             runPauseColor = ImVec4(0.2f, 0.4f, 0.5f, 1.0f);
         }
+        else if (simState == Simulator::COMPLETED &&
+                 Simulator::GetCurrentStepCalculated() + 1 < m_maxSteps) {
+            runPauseLabel = "Resume";
+            runPauseColor = ImVec4(0.2f, 0.4f, 0.5f, 1.0f);
+        }
 
         ImGui::PushStyleColor(ImGuiCol_Button, runPauseColor);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(runPauseColor.x * 1.2f, runPauseColor.y * 1.2f, runPauseColor.z * 1.2f, 1.0f));
@@ -76,6 +82,10 @@ void MainControlWindow::renderSimulatorControls() {
                 Simulator::PauseCalculation();
             }
             else if (simState == Simulator::PAUSED) {
+                Simulator::ResumeCalculation();
+            }
+            else if (simState == Simulator::COMPLETED &&
+                     Simulator::GetCurrentStepCalculated() + 1 < m_maxSteps) {
                 Simulator::ResumeCalculation();
             }
             else {
@@ -110,9 +120,7 @@ void MainControlWindow::renderSimulatorControls() {
         }
         ImGui::PopStyleColor(3);
 
-        ImGui::SameLine();
-
-        // Save Snapshot button
+        // Save Snapshot button (new row)
         ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.3f, 0.5f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.36f, 0.6f, 1.0f));
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.24f, 0.4f, 1.0f));
@@ -132,6 +140,20 @@ void MainControlWindow::renderSimulatorControls() {
         }
         ImGui::PopStyleColor(3);
 
+        ImGui::SameLine();
+
+        // Screenshot button
+        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.2f, 0.4f, 0.4f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.24f, 0.48f, 0.48f, 1.0f));
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.16f, 0.32f, 0.32f, 1.0f));
+        if (ImGui::Button("Snap")) {
+            int step = Simulator::GetCurrentStepCalculated();
+            std::string name = DataManager::GetConfigParameters().simulationName;
+            std::string filename = name + "_" + std::to_string(step < 0 ? 0 : step) + ".bmp";
+            Screenshot::Request(filename);
+        }
+        ImGui::PopStyleColor(3);
+
         // Calculation delay
         ImGui::Separator();
         ImGui::Text("Delay (s)");
@@ -142,6 +164,17 @@ void MainControlWindow::renderSimulatorControls() {
             if (m_plotDelaySec > 2.0f) m_plotDelaySec = 2.0f;
             Simulator::SetCalculationDelay(m_plotDelaySec);
             saveConfiguration();
+        }
+
+        ImGui::Text("Save Every");
+        ImGui::SetNextItemWidth(100);
+        ImGui::InputInt("##SnapshotInterval", &m_snapshotInterval, 0, 0);
+        if (ImGui::IsItemDeactivatedAfterEdit()) {
+            if (m_snapshotInterval < 0) m_snapshotInterval = 0;
+            saveConfiguration();
+        }
+        if (ImGui::IsItemHovered()) {
+            ImGui::SetTooltip("Auto-save snapshot every N steps (0=disabled)");
         }
     }
     ImGui::End();
@@ -183,7 +216,7 @@ void MainControlWindow::renderParameterControls() {
     if (ImGui::Begin("Simulation Parameters")) {
         // Simulation name
         ImGui::Text("Simulation Name");
-        ImGui::SetNextItemWidth(200);
+        ImGui::SetNextItemWidth(-1);
         ImGui::InputText("##SimName", m_simulationName, sizeof(m_simulationName));
         if (ImGui::IsItemDeactivatedAfterEdit()) {
             auto& config = DataManager::GetMutableConfigParameters();
@@ -246,7 +279,6 @@ void MainControlWindow::renderParameterControls() {
             m_boxSizeX = boxX;
             saveConfiguration();
         }
-        ImGui::SameLine();
         float boxY = static_cast<float>(m_boxSizeY);
         ImGui::SetNextItemWidth(100);
         ImGui::InputFloat("Y##BoxY", &boxY, 0.0f, 0.0f, "%.1f");
@@ -255,7 +287,6 @@ void MainControlWindow::renderParameterControls() {
             m_boxSizeY = boxY;
             saveConfiguration();
         }
-        ImGui::SameLine();
         float boxZ = static_cast<float>(m_boxSizeZ);
         ImGui::SetNextItemWidth(100);
         ImGui::InputFloat("Z##BoxZ", &boxZ, 0.0f, 0.0f, "%.1f");
@@ -365,17 +396,15 @@ void MainControlWindow::renderInterfaceSettings() {
     }
 
     ImGui::Separator();
-    ImGui::Text("Display Options");
-
-    static bool showFPS = true;
-    ImGui::Checkbox("Show FPS Counter", &showFPS);
-
-    static bool vsync = true;
-    ImGui::Checkbox("Enable V-Sync", &vsync);
-
-    static float uiScale = 1.0f;
-    if (ImGui::SliderFloat("UI Scale", &uiScale, 0.75f, 2.0f, "%.2fx")) {
-        ImGui::GetIO().FontGlobalScale = uiScale;
+    ImGui::Text("UI Scale");
+    ImGui::SetNextItemWidth(160);
+    float scale = m_uiScale;
+    if (ImGui::SliderFloat("##UIScale", &scale, 0.75f, 2.0f, "%.2fx")) {
+        m_uiScale = scale;
+        ImGui::GetIO().FontGlobalScale = m_uiScale;
+    }
+    if (ImGui::IsItemDeactivatedAfterEdit()) {
+        saveConfiguration();
     }
     ImGui::End();
 }
@@ -413,6 +442,10 @@ void MainControlWindow::loadConfiguration() {
         m_enableStochasticBonds = config.enableStochasticBonds;
         m_daemonTimeout = config.daemonTimeout;
         m_atomResupplyInterval = config.atomResupplyInterval;
+        m_censusSortMode = config.censusSortMode;
+        m_snapshotInterval = config.snapshotInterval;
+        m_uiScale = config.uiScale;
+        ImGui::GetIO().FontGlobalScale = m_uiScale;
 
         // Load and apply theme
         ThemeManager::ThemeType theme = ThemeManager::Theme::getInstance().stringToTheme(config.uiTheme);
@@ -445,6 +478,9 @@ void MainControlWindow::saveConfiguration() {
         config.enableStochasticBonds = m_enableStochasticBonds;
         config.daemonTimeout = m_daemonTimeout;
         config.atomResupplyInterval = m_atomResupplyInterval;
+        config.censusSortMode = m_censusSortMode;
+        config.snapshotInterval = m_snapshotInterval;
+        config.uiScale = m_uiScale;
 
         DataManager::SaveConfigParameters();
     }
@@ -518,17 +554,18 @@ void MainControlWindow::renderMoleculeCensusWindow() {
             int step = reactor->GetCurrentStep();
             int molCount = reactor->GetMoleculeCount();
             int freeAtoms = reactor->GetFreeAtomCount();
-            int bondCount = reactor->GetBondCount();
             ImGui::Text("Step: %d", step);
-            ImGui::Text("Molecules: %d  |  Free atoms: %d  |  Bonds: %d",
-                molCount, freeAtoms, bondCount);
+            ImGui::Text("Molecules: %d  |  Free atoms: %d",
+                molCount, freeAtoms);
 
             // Sort mode selector on same line as summary
             ImGui::Text("Sort by:");
             ImGui::SameLine();
             ImGui::SetNextItemWidth(120);
             const char* sortItems[] = { "Size (atoms)", "Count" };
-            ImGui::Combo("##census_sort", &m_censusSortMode, sortItems, IM_ARRAYSIZE(sortItems));
+            if (ImGui::Combo("##census_sort", &m_censusSortMode, sortItems, IM_ARRAYSIZE(sortItems))) {
+                saveConfiguration();
+            }
 
             ImGui::Separator();
 

@@ -64,10 +64,12 @@ private:
     int m_daemonTimeout = 500;
     int m_atomResupplyInterval = 0;
 
+    int m_snapshotInterval = 0;
+    float m_uiScale = 1.0f;
     bool m_showImGuiDemo = false;
     bool m_showImPlotDemo = false;
     bool m_showMoleculeCensus = true;
-    int m_censusSortMode = 1;  // 0=formula/size, 1=count
+    int m_censusSortMode = 0;  // 0=size (atoms), 1=count
 
     void renderMoleculeCensusWindow();
 };

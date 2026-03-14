@@ -21,6 +21,7 @@
 #include "../Logger/Logger.h"
 #include "../ThemeManager/ThemeManager.h"
 #include "main_control_window.h"
+#include "Screenshot.h"
 
 // Global GLFW window object
 GLFWwindow* g_Window = nullptr;
@@ -317,6 +318,7 @@ int main() {
         // End the frame for InterfaceGUI (which calls Visualizer::Render -> ImGui::Render and ImGui_ImplOpenGL3_RenderDrawData)
         ClearScreen(); // Clear the screen before rendering ImGui
         InterfaceGUI::EndFrame();
+        Screenshot::CaptureIfPending(); // Capture screenshot if requested (after render, before swap)
         PresentFrame(); // Swap buffers after rendering
     }
 

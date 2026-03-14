@@ -278,8 +278,13 @@ namespace Visualizer {
 			ImPlot::SetupAxisLimits(ImAxis_X1, 0, maxMonths, ImGuiCond_Always);
 
 			// Setup custom X-axis ticks at specified intervals
+			// Double the interval until we have at most 8 ticks to avoid label overlap
+			int tickInterval = config.ticksEvery;
+			while (tickInterval > 0 && maxMonths / tickInterval > 8) {
+				tickInterval *= 2;
+			}
 			std::vector<double> x_ticks;
-			for (int tick_val = 0; tick_val <= maxMonths; tick_val += config.ticksEvery) {
+			for (int tick_val = 0; tick_val <= maxMonths; tick_val += tickInterval) {
 				x_ticks.push_back(static_cast<double>(tick_val));
 			}
 			// Ensure at least one tick
@@ -356,12 +361,13 @@ namespace Visualizer {
 				}
 			}
 			else {
-				 // FIX: Set explicit Y-axis limits when no data is present to prevent extreme scaling
-				ImPlot::SetupAxisLimits(ImAxis_Y1, -10, 10, ImGuiCond_Always);
-                
-				// Display a message if no data has been calculated yet
-				// Use ImPlotTextFlags_None instead of 0 for clarity
-				ImPlot::PlotText("No data calculated yet", maxMonths / 2.0f, 0.0f, ImVec2(0, 0), ImPlotTextFlags_None);
+				// Set explicit Y-axis limits when no data is present
+				if (state.useLogScale) {
+					ImPlot::SetupAxisLimits(ImAxis_Y1, 0.1, 100, ImGuiCond_Always);
+				} else {
+					ImPlot::SetupAxisLimits(ImAxis_Y1, -10, 10, ImGuiCond_Always);
+				}
+				ImPlot::PlotText("No data calculated yet", maxMonths / 2.0f, state.useLogScale ? 1.0f : 0.0f, ImVec2(0, 0), ImPlotTextFlags_None);
 			}
 
 			// After plotting, retrieve and store the current legend state for persistence

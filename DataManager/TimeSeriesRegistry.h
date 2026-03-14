@@ -48,6 +48,7 @@ namespace DataManager {
         void UpdateAllSeries(int currentMonth);
         void ClearAllSeries();
         void InitializeAllSeries(int maxMonths);
+        void ExtendAllSeries(int newMaxSteps);
 
         // Accessors
         const std::vector<float>* GetSeriesData(const std::string& id) const;
