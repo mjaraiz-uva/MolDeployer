@@ -96,6 +96,7 @@ struct PlotPersistentState {
     bool showLine = true;                                     // Default to show lines
     bool showMarkers = false;                                 // Default off to avoid 16-bit vertex overflow
     int markerSize = 2;                                       // Default marker size (0=auto, 1-5 for specific sizes)
+    bool useLogScale = false;                                 // Log10 Y-axis scale
 };
 
 // Plot manager to track and persist state across multiple plots

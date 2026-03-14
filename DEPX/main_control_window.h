@@ -66,4 +66,8 @@ private:
 
     bool m_showImGuiDemo = false;
     bool m_showImPlotDemo = false;
+    bool m_showMoleculeCensus = true;
+    int m_censusSortMode = 1;  // 0=formula/size, 1=count
+
+    void renderMoleculeCensusWindow();
 };

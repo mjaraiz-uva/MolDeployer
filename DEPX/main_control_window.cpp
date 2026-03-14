@@ -2,12 +2,14 @@
 // Adapted for MolecularDeployer chemistry simulation
 #include <imgui.h>
 #include <nlohmann/json.hpp>
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <implot.h>
 #include "main_control_window.h"
 #include "../Logger/Logger.h"
 #include "../DataManager/DataManager.h"
+#include "../Chemistry/Reactor.h"
 
 #ifdef _WIN32
 #include <windows.h>
@@ -26,6 +28,7 @@ void MainControlWindow::render() {
     renderSimulatorControls();
     renderParameterControls();
     renderPlotControls();
+    renderMoleculeCensusWindow();
     renderInterfaceSettings();
 
     // Demo windows if enabled
@@ -165,6 +168,8 @@ void MainControlWindow::renderMenuBar() {
         }
 
         if (ImGui::BeginMenu("View")) {
+            ImGui::MenuItem("Molecule Census", nullptr, &m_showMoleculeCensus);
+            ImGui::Separator();
             ImGui::MenuItem("ImGui Demo", nullptr, &m_showImGuiDemo);
             ImGui::MenuItem("ImPlot Demo", nullptr, &m_showImPlotDemo);
             ImGui::EndMenu();
@@ -327,8 +332,10 @@ void MainControlWindow::renderParameterControls() {
 }
 
 void MainControlWindow::renderInterfaceSettings() {
-    ImGui::Text("User Interface Settings");
-    ImGui::Separator();
+    if (!ImGui::Begin("User Interface Settings")) {
+        ImGui::End();
+        return;
+    }
 
     ImGui::Text("Color Theme");
 
@@ -370,6 +377,7 @@ void MainControlWindow::renderInterfaceSettings() {
     if (ImGui::SliderFloat("UI Scale", &uiScale, 0.75f, 2.0f, "%.2fx")) {
         ImGui::GetIO().FontGlobalScale = uiScale;
     }
+    ImGui::End();
 }
 
 void MainControlWindow::changeTheme(ThemeManager::ThemeType newTheme) {
@@ -479,6 +487,99 @@ void MainControlWindow::loadSnapshot() {
         }
     }
 #endif
+}
+
+// Count total atoms in a Hill-system formula like "C2H6", "CH4", "H2"
+static int CountAtomsInFormula(const std::string& formula) {
+    int total = 0;
+    for (size_t i = 0; i < formula.size(); ++i) {
+        if (std::isupper(formula[i])) {
+            // Skip lowercase continuation (e.g. nothing for C,H,O but future-proof)
+            size_t j = i + 1;
+            while (j < formula.size() && std::islower(formula[j])) ++j;
+            // Parse digit count
+            int count = 0;
+            while (j < formula.size() && std::isdigit(formula[j])) {
+                count = count * 10 + (formula[j] - '0');
+                ++j;
+            }
+            total += (count > 0) ? count : 1;
+        }
+    }
+    return total;
+}
+
+void MainControlWindow::renderMoleculeCensusWindow() {
+    if (!m_showMoleculeCensus) return;
+
+    if (ImGui::Begin("Molecule Census", &m_showMoleculeCensus)) {
+        auto* reactor = static_cast<Chemistry::Reactor*>(Simulator::GetReactor());
+        if (reactor) {
+            int step = reactor->GetCurrentStep();
+            int molCount = reactor->GetMoleculeCount();
+            int freeAtoms = reactor->GetFreeAtomCount();
+            int bondCount = reactor->GetBondCount();
+            ImGui::Text("Step: %d", step);
+            ImGui::Text("Molecules: %d  |  Free atoms: %d  |  Bonds: %d",
+                molCount, freeAtoms, bondCount);
+
+            // Sort mode selector on same line as summary
+            ImGui::Text("Sort by:");
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(120);
+            const char* sortItems[] = { "Size (atoms)", "Count" };
+            ImGui::Combo("##census_sort", &m_censusSortMode, sortItems, IM_ARRAYSIZE(sortItems));
+
+            ImGui::Separator();
+
+            // Copy census to avoid data race with simulation thread
+            auto census = reactor->GetMoleculeCensus();
+            if (census.empty()) {
+                ImGui::TextDisabled("No molecules formed yet.");
+            } else {
+                // Compute total molecules for percentage
+                int totalMols = 0;
+                for (const auto& [f, n] : census) totalMols += n;
+
+                // Build sortable list with atom count
+                struct Entry { std::string formula; int count; int atoms; };
+                std::vector<Entry> entries;
+                entries.reserve(census.size());
+                for (const auto& [f, n] : census) {
+                    entries.push_back({f, n, CountAtomsInFormula(f)});
+                }
+
+                if (m_censusSortMode == 0) {
+                    // Sort by atom count descending (largest molecules first)
+                    std::sort(entries.begin(), entries.end(),
+                        [](const Entry& a, const Entry& b) { return a.atoms > b.atoms; });
+                } else {
+                    // Sort by count descending
+                    std::sort(entries.begin(), entries.end(),
+                        [](const Entry& a, const Entry& b) { return a.count > b.count; });
+                }
+
+                ImGui::Columns(3, "census_cols");
+                ImGui::SetColumnWidth(0, 100);
+                ImGui::SetColumnWidth(1, 50);
+                ImGui::TextUnformatted("Formula"); ImGui::NextColumn();
+                ImGui::TextUnformatted("Size"); ImGui::NextColumn();
+                ImGui::TextUnformatted("Count"); ImGui::NextColumn();
+                ImGui::Separator();
+
+                for (const auto& e : entries) {
+                    ImGui::TextUnformatted(e.formula.c_str()); ImGui::NextColumn();
+                    ImGui::Text("%d", e.atoms); ImGui::NextColumn();
+                    float pct = totalMols > 0 ? 100.0f * e.count / totalMols : 0.0f;
+                    ImGui::Text("%d (%.0f%%)", e.count, pct); ImGui::NextColumn();
+                }
+                ImGui::Columns(1);
+            }
+        } else {
+            ImGui::TextDisabled("No reactor active.");
+        }
+    }
+    ImGui::End();
 }
 
 void MainControlWindow::renderPlotControls() {

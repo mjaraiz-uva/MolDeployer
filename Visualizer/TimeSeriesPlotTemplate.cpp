@@ -53,6 +53,7 @@ namespace Visualizer {
 			buf->appendf("ShowLine=%d\n", state.showLine ? 1 : 0);
 			buf->appendf("ShowMarkers=%d\n", state.showMarkers ? 1 : 0);
 			buf->appendf("MarkerSize=%d\n", state.markerSize);
+			buf->appendf("LogScale=%d\n", state.useLogScale ? 1 : 0);
 			buf->appendf("\n");
 		}
 	}
@@ -77,6 +78,7 @@ namespace Visualizer {
 		newState.showLine = true;
 		newState.showMarkers = false;
 		newState.markerSize = 2;
+		newState.useLogScale = false;
 
 		return &newState;
 	}
@@ -106,6 +108,12 @@ namespace Visualizer {
 		}
 		else if (sscanf_s(line, "MarkerSize=%d", &marker_size) == 1) {
 			state->markerSize = marker_size;
+		}
+		else {
+			int log_val;
+			if (sscanf_s(line, "LogScale=%d", &log_val) == 1) {
+				state->useLogScale = (log_val == 1);
+			}
 		}
 	}
 
@@ -231,7 +239,14 @@ namespace Visualizer {
 				}
 			}
 			ImGui::SameLine();
-			ImGui::SetNextItemWidth(100);
+			if (ImGui::Checkbox("Log Y", &state.useLogScale)) {
+				ImGui::MarkIniSettingsDirty();
+				if (ImGui::GetIO().IniFilename) {
+					ImGui::SaveIniSettingsToDisk(ImGui::GetIO().IniFilename);
+				}
+			}
+			ImGui::SameLine();
+			ImGui::SetNextItemWidth(50);
 			if (ImGui::Combo("Marker Size", &state.markerSize, markerSizeItems, IM_ARRAYSIZE(markerSizeItems))) {
 				ImGui::MarkIniSettingsDirty();
 				// Force immediate save to avoid losing settings on recreation
@@ -257,6 +272,9 @@ namespace Visualizer {
 			// Setup axes
 			ImPlot::SetupAxes(config.xAxisLabel.c_str(), config.yAxisLabel.c_str(),
 				ImPlotAxisFlags_None, ImPlotAxisFlags_AutoFit);
+			if (state.useLogScale) {
+				ImPlot::SetupAxisScale(ImAxis_Y1, ImPlotScale_Log10);
+			}
 			ImPlot::SetupAxisLimits(ImAxis_X1, 0, maxMonths, ImGuiCond_Always);
 
 			// Setup custom X-axis ticks at specified intervals

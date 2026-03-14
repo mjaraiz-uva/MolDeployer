@@ -77,25 +77,50 @@ namespace Simulator {
 					+ std::to_string(freeAtoms) + " free ("
 					+ std::to_string(freeC) + "C + " + std::to_string(freeH) + "H + " + std::to_string(freeO) + "O), "
 					+ std::to_string(totalAtoms - freeAtoms) + " bonded");
-				Logger::Info("  Bonds: " + std::to_string(bonds) + ", Energy: "
-					+ std::to_string(static_cast<int>(bondEnergy)) + " kJ/mol"
-					+ " | this step: +" + std::to_string(formed) + " formed, -" + std::to_string(broken) + " broken");
+				{
+					int bondedAtoms = totalAtoms - freeAtoms;
+					double perAtom = bondedAtoms > 0 ? bondEnergy / bondedAtoms : 0.0;
+					char buf[256];
+					snprintf(buf, sizeof(buf),
+						"  Bonds: %d, Energy: %d kJ/mol (%.1f/atom) | this step: +%d formed, -%d broken",
+						bonds, static_cast<int>(bondEnergy), perAtom, formed, broken);
+					Logger::Info(buf);
+				}
 				Logger::Info("  Molecules: " + std::to_string(mols)
 					+ ", avg size: " + std::to_string(avgSize).substr(0, 4)
 					+ ", max size: " + std::to_string(maxSize));
 
-				// Species census — sorted by count descending
+				// Species census — sorted by size (atom count) descending
 				const auto& census = g_reactor->GetMoleculeCensus();
 				if (!census.empty()) {
-					std::vector<std::pair<std::string, int>> sorted(census.begin(), census.end());
+					// Helper: count atoms in Hill formula
+					auto countAtoms = [](const std::string& f) {
+						int total = 0;
+						for (size_t i = 0; i < f.size(); ++i) {
+							if (std::isupper(f[i])) {
+								size_t j = i + 1;
+								while (j < f.size() && std::islower(f[j])) ++j;
+								int n = 0;
+								while (j < f.size() && std::isdigit(f[j])) { n = n * 10 + (f[j] - '0'); ++j; }
+								total += (n > 0) ? n : 1;
+							}
+						}
+						return total;
+					};
+
+					struct Entry { std::string formula; int count; int atoms; };
+					std::vector<Entry> sorted;
+					sorted.reserve(census.size());
+					for (const auto& [f, n] : census)
+						sorted.push_back({f, n, countAtoms(f)});
 					std::sort(sorted.begin(), sorted.end(),
-						[](const auto& a, const auto& b) { return a.second > b.second; });
+						[](const Entry& a, const Entry& b) { return a.atoms > b.atoms; });
 
 					std::string speciesLine = "  Species: ";
 					int shown = 0;
-					for (const auto& [formula, count] : sorted) {
+					for (const auto& e : sorted) {
 						if (shown > 0) speciesLine += ", ";
-						speciesLine += formula + "(" + std::to_string(count) + ")";
+						speciesLine += e.formula + "(" + std::to_string(e.count) + ")";
 						if (++shown >= 10) {
 							if (static_cast<int>(sorted.size()) > 10)
 								speciesLine += " ... +" + std::to_string(sorted.size() - 10) + " more";
